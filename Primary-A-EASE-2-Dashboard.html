@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Primary A-EASE 2 Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0b1020; --panel:#121a33; --panel2:#1a2447; --ink:#e8ecff; --muted:#8a96c2;
+  --accent:#6c8cff; --accent2:#7fe7c4; --warn:#ffb24c; --bad:#ff6e7a; --good:#7fe7c4;
+  --grid:#243064; --shadow:0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+a{color:var(--accent2)}
+
+/* TITLE PAGE */
+.cover{
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(1200px 800px at 70% 20%, #2a3a86 0%, #0b1020 60%),
+             radial-gradient(900px 700px at 10% 90%, #1f3a6e 0%, transparent 70%);
+  position:relative; overflow:hidden;
+}
+.cover::before{
+  content:""; position:absolute; inset:0;
+  background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><circle cx='1' cy='1' r='1' fill='%23ffffff10'/></svg>");
+  opacity:.4;
+}
+.cover-inner{position:relative; text-align:center; padding:40px; max-width:980px}
+.badge{display:inline-block;padding:8px 14px;border-radius:99px;background:#ffffff14;border:1px solid #ffffff22;color:#cfd6ff;font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
+.cover h1{font-size:clamp(40px,7vw,84px); margin:0 0 12px; line-height:1.05; letter-spacing:-0.02em; background:linear-gradient(120deg,#fff 0%,#b6c9ff 60%,#7fe7c4 100%);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.cover h2{font-weight:400; font-size:clamp(16px,2vw,22px); color:#cfd6ff; margin:0 0 28px}
+.cover .meta{display:flex; gap:30px; justify-content:center; flex-wrap:wrap; color:#9aa6d0; font-size:14px; margin-top:24px}
+.cover .meta b{color:#fff; font-weight:600}
+.cta{margin-top:36px; display:inline-flex; align-items:center; gap:10px; padding:14px 26px; border-radius:14px; background:linear-gradient(135deg,#6c8cff,#7fe7c4); color:#0b1020; text-decoration:none; font-weight:700; box-shadow:0 14px 30px rgba(108,140,255,.35); cursor:pointer; border:none; font-size:16px}
+.cta:hover{transform:translateY(-2px); transition:.2s}
+.scroll-hint{position:absolute; bottom:24px; left:50%; transform:translateX(-50%); color:#9aa6d0; font-size:12px; letter-spacing:2px; text-transform:uppercase; opacity:.8}
+
+/* DASHBOARD */
+.wrap{max-width:1400px; margin:0 auto; padding:30px 24px 60px}
+.section-title{display:flex;align-items:baseline;gap:14px;margin:34px 0 14px}
+.section-title h3{margin:0; font-size:20px}
+.section-title span{color:var(--muted); font-size:13px}
+
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px}
+.kpi{background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%); border:1px solid #25315e; border-radius:16px; padding:18px; box-shadow:var(--shadow)}
+.kpi .label{color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:1.4px}
+.kpi .val{font-size:30px; font-weight:700; margin-top:6px}
+.kpi .sub{color:var(--muted); font-size:12px; margin-top:4px}
+
+.filters{display:flex; gap:12px; flex-wrap:wrap; margin:18px 0 8px; align-items:center}
+.filters label{font-size:12px; color:var(--muted); margin-right:4px}
+.filters select,.filters input[type="text"],.filters input[type="number"]{background:#1a2447; color:#e8ecff; border:1px solid #2c3a6f; border-radius:10px; padding:8px 12px; font-size:13px}
+.filters input[type="text"]{min-width:240px}
+.filters input[type="number"]{width:80px}
+.filters .clear{background:transparent; color:#9aa6d0; border:1px solid #2c3a6f; padding:8px 12px; border-radius:10px; cursor:pointer; font-size:12px}
+.filters .clear:hover{color:#fff; border-color:#4a5aa0}
+.search-wrap{position:relative}
+.search-wrap input{padding-left:32px !important}
+.search-wrap::before{content:"🔍"; position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:12px; opacity:.7; pointer-events:none}
+.results-meta{display:flex; gap:14px; align-items:center; color:var(--muted); font-size:12px; margin-bottom:10px}
+.results-wrap{max-height:520px; overflow-y:auto; border-radius:10px; border:1px solid #25315e}
+.results-wrap table{margin:0}
+.results-wrap thead th{position:sticky; top:0; background:#1a2447; z-index:1}
+.results-wrap th{cursor:pointer; user-select:none}
+.results-wrap th.sorted{color:var(--accent2)}
+.no-rows{padding:30px; text-align:center; color:var(--muted)}
+mark{background:#7fe7c440; color:#fff; padding:1px 3px; border-radius:3px}
+
+.grid{display:grid; gap:18px}
+.grid.cols-2{grid-template-columns:1fr 1fr}
+.grid.cols-3{grid-template-columns:repeat(3,1fr)}
+@media (max-width:980px){ .grid.cols-2,.grid.cols-3{grid-template-columns:1fr} }
+
+.card{background:linear-gradient(180deg,var(--panel) 0%,var(--panel2) 100%); border:1px solid #25315e; border-radius:16px; padding:18px; box-shadow:var(--shadow)}
+.card h4{margin:0 0 6px; font-size:15px}
+.card .desc{color:var(--muted); font-size:12px; margin-bottom:12px}
+.chart-box{position:relative; height:320px}
+.chart-box.tall{height:420px}
+.chart-box.short{height:240px}
+
+table{width:100%; border-collapse:collapse; font-size:13px}
+th,td{padding:10px 8px; text-align:left; border-bottom:1px solid #25315e}
+th{color:var(--muted); font-weight:600; text-transform:uppercase; font-size:11px; letter-spacing:1px}
+tr:hover td{background:#1c2752}
+.rank{color:var(--muted); width:36px}
+.score-pill{display:inline-block; padding:3px 10px; border-radius:99px; font-weight:600; font-size:12px}
+
+.heatmap{overflow-x:auto}
+.heatmap table{min-width:780px}
+.heatmap th, .heatmap td{text-align:center; padding:8px}
+.heatmap .school{text-align:left; min-width:170px; font-weight:600}
+.heatmap .cell{border-radius:6px; font-weight:600}
+
+.pivot{overflow-x:auto}
+.pivot table{min-width:780px}
+.pivot th, .pivot td{text-align:center; padding:8px; font-size:12px}
+.pivot th{font-size:11px}
+.pivot .school{text-align:left; min-width:160px; font-weight:600; font-size:13px}
+.pivot tfoot td{font-weight:700; background:#1a2447; border-top:2px solid #2c3a6f}
+.pivot tfoot td.school{color:var(--accent2)}
+.pivot .total{font-weight:700; color:var(--accent2)}
+
+.stat-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px}
+.stat{background:#0f1735; border:1px solid #25315e; border-radius:12px; padding:14px}
+.stat .label{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:1px}
+.stat .val{font-size:22px; font-weight:700; margin-top:4px}
+.stat .sub{color:var(--muted); font-size:11px; margin-top:2px}
+
+.toggle{display:inline-flex; align-items:center; gap:8px; cursor:pointer; color:var(--ink); font-size:12px; background:#1a2447; border:1px solid #2c3a6f; padding:6px 12px; border-radius:8px}
+.toggle input{cursor:pointer}
+.status-pill{display:inline-block; padding:2px 8px; border-radius:99px; font-size:11px; background:#ff6e7a30; color:#ff9aa3; border:1px solid #ff6e7a60}
+
+footer{margin-top:50px;text-align:center;color:var(--muted);font-size:12px;padding-bottom:30px}
+
+.legend-row{display:flex; gap:14px; flex-wrap:wrap; margin-top:8px; font-size:12px; color:var(--muted)}
+.legend-row .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+</style>
+</head>
+<body>
+
+<!-- ================= TITLE / COVER PAGE ================= -->
+<section class="cover" id="cover">
+  <div class="cover-inner">
+    <div class="badge">Exam Results Analysis · 2025–2026</div>
+    <h1>Primary A-EASE 2<br>Dashboard</h1>
+    <h2>A comprehensive review of teacher participation, performance, and subject mastery across the A-EASE network.</h2>
+    <button class="cta" onclick="document.getElementById('dash').scrollIntoView({behavior:'smooth'})">Enter Dashboard ▾</button>
+    <div class="meta">
+      <div><b id="meta-participants">—</b> participants</div>
+      <div><b id="meta-schools">—</b> schools</div>
+      <div><b id="meta-subjects">—</b> subjects</div>
+      <div><b id="meta-avg">—</b> avg score</div>
+    </div>
+  </div>
+  <div class="scroll-hint">Scroll to explore ↓</div>
+</section>
+
+<!-- ================= DASHBOARD ================= -->
+<div class="wrap" id="dash">
+
+  <div class="section-title">
+    <h3>Overview</h3>
+    <span>Headline metrics across the program</span>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="filters">
+    <span class="search-wrap"><input type="text" id="f-search" placeholder="Search teacher name or email…" autocomplete="off"></span>
+    <label>School</label>
+    <select id="f-school"><option value="">All schools</option></select>
+    <label>Subject</label>
+    <select id="f-subject"><option value="">All subjects</option></select>
+    <label>Score</label>
+    <input type="number" id="f-min" placeholder="min" min="0" max="100">
+    <span style="color:var(--muted)">–</span>
+    <input type="number" id="f-max" placeholder="max" min="0" max="100">
+    <button class="clear" id="f-clear">Reset</button>
+    <span style="margin-left:auto;color:var(--muted);font-size:12px" id="f-summary"></span>
+  </div>
+
+  <div class="section-title">
+    <h3>Performance by School</h3>
+    <span>Average final score per school, ordered high → low</span>
+  </div>
+  <div class="grid cols-2">
+    <div class="card">
+      <h4>Average Score by School</h4>
+      <div class="desc">Higher is better. Bar color reflects performance band.</div>
+      <div class="chart-box tall"><canvas id="chart-school"></canvas></div>
+    </div>
+    <div class="card">
+      <h4>Participation Rate by School</h4>
+      <div class="desc">Participated teachers ÷ registered teachers.</div>
+      <div class="chart-box tall"><canvas id="chart-participation"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h3>Performance by Subject</h3>
+    <span>How teachers performed across the seven subjects</span>
+  </div>
+  <div class="grid cols-2">
+    <div class="card">
+      <h4>Average Score by Subject</h4>
+      <div class="desc">Mean score within the current filter.</div>
+      <div class="chart-box"><canvas id="chart-subject"></canvas></div>
+    </div>
+    <div class="card">
+      <h4>Score Distribution</h4>
+      <div class="desc">Histogram of all final scores in current view.</div>
+      <div class="chart-box"><canvas id="chart-dist"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h3>School × Subject Matrix</h3>
+    <span>Heatmap of average scores. Empty cells mean no participants in that combination.</span>
+  </div>
+  <div class="card heatmap">
+    <div id="heatmap"></div>
+    <div class="legend-row">
+      <span><span class="sw" style="background:#ff6e7a"></span>&lt; 60</span>
+      <span><span class="sw" style="background:#ffb24c"></span>60–74</span>
+      <span><span class="sw" style="background:#f1d860"></span>75–84</span>
+      <span><span class="sw" style="background:#7fe7c4"></span>85–94</span>
+      <span><span class="sw" style="background:#6c8cff"></span>95–100</span>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h3>Excel Analysis Tab — All 3 Pivot Tables</h3>
+    <span>Exact replication of the pivot tables from the source workbook</span>
+  </div>
+
+  <div class="card pivot">
+    <h4>① Average Final Score — School × Subject</h4>
+    <div class="desc">Mean of "Final Score" grouped by School and Subject. Color reflects performance band.</div>
+    <div id="pivot-avg"></div>
+  </div>
+
+  <div class="grid cols-2" style="margin-top:18px">
+    <div class="card pivot">
+      <h4>② Participants — School × Subject</h4>
+      <div class="desc">Count of teachers who actually completed each subject.</div>
+      <div id="pivot-count"></div>
+    </div>
+    <div class="card pivot">
+      <h4>③ Registered Teachers — School × Subject</h4>
+      <div class="desc">From the "All Teachers" sheet. Each cell shows registered count + participation rate.</div>
+      <div id="pivot-reg"></div>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h3>Statistical Deep-Dive</h3>
+    <span>Descriptive statistics across the current filter</span>
+  </div>
+  <div class="grid cols-2">
+    <div class="card">
+      <h4>Overall Statistics</h4>
+      <div class="desc">Aggregate stats for the current filter (or full dataset if no filter is set).</div>
+      <div class="stat-grid" id="stats-overall"></div>
+    </div>
+    <div class="card">
+      <h4>Per-Subject Statistics</h4>
+      <div class="desc">Mean, median, std-dev, min/max per subject.</div>
+      <div style="overflow-x:auto"><table id="stats-subject">
+        <thead><tr><th>Subject</th><th>n</th><th>Mean</th><th>Median</th><th>Std Dev</th><th>Min</th><th>Max</th><th>≥75</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:18px">
+    <h4>Per-School Statistics</h4>
+    <div class="desc">All schools in the current filter, sorted by mean score.</div>
+    <div style="overflow-x:auto"><table id="stats-school">
+      <thead><tr><th>School</th><th>Participants</th><th>Registered</th><th>Participation</th><th>Mean</th><th>Median</th><th>Std Dev</th><th>Min</th><th>Max</th><th>Pass Rate (≥75)</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+
+  <div class="section-title">
+    <h3>Time vs Performance</h3>
+    <span>Does spending more time lead to a higher score?</span>
+  </div>
+  <div class="grid cols-2">
+    <div class="card">
+      <h4>Score vs Time Used (scatter)</h4>
+      <div class="desc">Each point is one teacher. Hover for details.</div>
+      <div class="chart-box"><canvas id="chart-scatter"></canvas></div>
+    </div>
+    <div class="card">
+      <h4>Average Time Used by Subject (minutes)</h4>
+      <div class="desc">Mean of "Seconds" ÷ 60.</div>
+      <div class="chart-box"><canvas id="chart-time"></canvas></div>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h3>Top Performers & Tables</h3>
+    <span>Top 15 teachers by score within the current filter</span>
+  </div>
+  <div class="grid cols-2">
+    <div class="card">
+      <h4>Top 15 Teachers</h4>
+      <div class="desc">Ties broken by shorter time used.</div>
+      <table id="top-table">
+        <thead><tr><th class="rank">#</th><th>Teacher</th><th>School</th><th>Subject</th><th>Score</th><th>Time</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h4>Schools — Quick Stats</h4>
+      <div class="desc">Counts and averages per school in current view.</div>
+      <table id="school-table">
+        <thead><tr><th>School</th><th>Participants</th><th>Avg Score</th><th>Best</th><th>Worst</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h3>No-Show Analysis</h3>
+    <span>Registered teachers from the "All Teachers" sheet who did not participate in their subject's exam</span>
+  </div>
+  <div class="card">
+    <div class="results-meta">
+      <b id="noshow-count">— no-shows</b>
+      <span id="noshow-summary"></span>
+    </div>
+    <div class="results-wrap" style="max-height:360px">
+      <table id="noshow-table">
+        <thead><tr><th>Teacher</th><th>School</th><th>Subject</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section-title">
+    <h3>Individual Results — Search</h3>
+    <span>Type a name/email above to find a specific teacher's score. Click any column header to sort.</span>
+  </div>
+  <div class="card">
+    <div class="results-meta">
+      <b id="results-count">0 results</b>
+      <span id="results-summary"></span>
+      <label class="toggle" style="margin-left:14px"><input type="checkbox" id="include-noshow"> Include registered teachers without scores</label>
+      <span style="margin-left:auto"><a href="#" id="export-csv" style="color:var(--accent2);text-decoration:none">⤓ Export CSV</a></span>
+    </div>
+    <div class="results-wrap">
+      <table id="results-table">
+        <thead><tr>
+          <th data-sort="teacher">Teacher</th>
+          <th data-sort="school">School</th>
+          <th data-sort="subject">Subject</th>
+          <th data-sort="score">Score</th>
+          <th data-sort="seconds">Time</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    Source: <i>Primary A-EASE 2 Results 2025-2026.xlsx</i> · Generated <span id="gen-date"></span>
+  </footer>
+</div>
+
+<script>
+/* ===================== DATA ===================== */
+const RAW = {"participants": [{"school": "A-EASE Regional Participant", "subject": "English", "teacher": "eguevarra@fis.edu.ph", "score": 90.0, "time": "12 menit", "seconds": 756.0}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "arman.t@chindamanee.ac.th", "score": 90.0, "time": "28 menit", "seconds": 1709.0}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "vepa.sahedov@isl.edu.la", "score": 82.5, "time": "54 menit", "seconds": 3268.0}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "joannah.numbisi@isl.edu.la", "score": 70.0, "time": "1 jam", "seconds": 4467.0}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "jomalyn.almine@isl.edu.la", "score": 67.5, "time": "1 jam", "seconds": 3977.0}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "erminia.monares@isl.edu.la", "score": 82.5, "time": "1 jam", "seconds": 4953.0}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "y.iranuly@isl.edu.la", "score": 90.0, "time": "30 menit", "seconds": 1808.0}, {"school": "A-EASE Regional Participant", "subject": "Mathematics", "teacher": "arman.t@chindamanee.ac.th", "score": 50.0, "time": "1 jam", "seconds": 3748.0}, {"school": "A-EASE Regional Participant", "subject": "Mathematics", "teacher": "sabdulhamid@fis.edu.ph", "score": 92.5, "time": "45 menit", "seconds": 2729.0}, {"school": "A-EASE Regional Participant", "subject": "Mathematics", "teacher": "elmira.eshenkul@isl.edu.la", "score": 92.5, "time": "27 menit", "seconds": 1647.0}, {"school": "A-EASE Regional Participant", "subject": "Mathematics", "teacher": "Ehoshanov@horizon.edu.vn", "score": 0.0, "time": "5 jam", "seconds": 21098.0}, {"school": "A-EASE Regional Participant", "subject": "Mathematics", "teacher": "alma.monforte@isl.edu.la", "score": 77.5, "time": "1 jam", "seconds": 3664.0}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "arman.t@chindamanee.ac.th", "score": 60.0, "time": "2 jam", "seconds": 8115.0}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "shasoltan.a@chindamanee.ac.th", "score": 67.5, "time": "46 menit", "seconds": 2808.0}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "mabubakar@fis.edu.ph", "score": 72.5, "time": "23 menit", "seconds": 1396.0}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "yayang.putra@isl.edu.la", "score": 62.5, "time": "46 menit", "seconds": 2775.0}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "shirindj89@gmail.com", "score": 77.5, "time": "53 menit", "seconds": 3234.0}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "Ari Munanda Putra", "score": 80.0, "time": "38 menit", "seconds": 2302.0}, {"school": "Fatih", "subject": "Bahasa Indonesia", "teacher": "Zannatun Saniah, S. Pd.", "score": 80.0, "time": "31 menit", "seconds": 1894.0}, {"school": "Fatih", "subject": "Bahasa Indonesia", "teacher": "Nura Hanim, S.Pd.", "score": 87.5, "time": "42 menit", "seconds": 2550.0}, {"school": "Fatih", "subject": "English", "teacher": "Nina Ramadhani, S.Pd.", "score": 85.0, "time": "1 jam", "seconds": 4749.0}, {"school": "Fatih", "subject": "English", "teacher": "Tiara Saftika, S.Pd", "score": 87.5, "time": "1 jam", "seconds": 4811.0}, {"school": "Fatih", "subject": "English", "teacher": "Desi Purnama Sari, M. Pd.", "score": 80.0, "time": "40 menit", "seconds": 2420.0}, {"school": "Fatih", "subject": "Mathematics", "teacher": "Khairunnisa Nur Fithriani, S. Mat", "score": 100.0, "time": "1 jam", "seconds": 3798.0}, {"school": "Fatih", "subject": "PG-KG", "teacher": "Wardatul Jannah", "score": 87.5, "time": "31 menit", "seconds": 1877.0}, {"school": "Fatih", "subject": "PG-KG", "teacher": "Fitriyanti", "score": 87.5, "time": "45 menit", "seconds": 2716.0}, {"school": "Fatih", "subject": "PKN", "teacher": "Cut Lisa Meutia Sari, S.Pd", "score": 90.0, "time": "39 menit", "seconds": 2398.0}, {"school": "Fatih", "subject": "Religion", "teacher": "Elviana,  S.Sos.I.", "score": 87.5, "time": "1 jam", "seconds": 5601.0}, {"school": "Fatih", "subject": "Science", "teacher": "Ihda Quratul Aini, S.Si.", "score": 82.5, "time": "46 menit", "seconds": 2783.0}, {"school": "Fatih", "subject": "Science", "teacher": "Ailya Nurul Ilma", "score": 87.5, "time": "1 jam", "seconds": 3956.0}, {"school": "Fatih", "subject": "Science", "teacher": "Hilda Safitri Berutu, S.Pd.", "score": 77.5, "time": "53 menit", "seconds": 3234.0}, {"school": "Kesatuan Bangsa", "subject": "Bahasa Indonesia", "teacher": "Anwar Sultan Yusuf", "score": 72.5, "time": "22 menit", "seconds": 1374.0}, {"school": "Kesatuan Bangsa", "subject": "PKN", "teacher": "Isnanin Aisyah", "score": 75.0, "time": "16 menit", "seconds": 969.0}, {"school": "Kesatuan Bangsa", "subject": "Science", "teacher": "Megita Ameliya", "score": 47.5, "time": "24 menit", "seconds": 1459.0}, {"school": "Kharisma Bangsa", "subject": "Bahasa Indonesia", "teacher": "Nafisa, S.Pd.", "score": 57.5, "time": "19 menit", "seconds": 1174.0}, {"school": "Kharisma Bangsa", "subject": "Bahasa Indonesia", "teacher": "Erzy Insyafiatul Luthfiyah, S.Psi.", "score": 37.5, "time": "25 menit", "seconds": 1504.0}, {"school": "Kharisma Bangsa", "subject": "Bahasa Indonesia", "teacher": "Cahya Rizki Amaliyah, S.Pd.", "score": 50.0, "time": "31 menit", "seconds": 1866.0}, {"school": "Kharisma Bangsa", "subject": "Bahasa Indonesia", "teacher": "Frida Ayu Rohmyni, S.Pd.", "score": 65.0, "time": "27 menit", "seconds": 1661.0}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Cut Zana Yuki Meroza, B.Sc.", "score": 80.0, "time": "15 menit", "seconds": 939.0}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Siti Maisyarah, S.Pd.", "score": 80.0, "time": "33 menit", "seconds": 2007.0}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Bulfa Riska Mufarrodah, S.Pd.", "score": 85.0, "time": "19 menit", "seconds": 1176.0}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Sakina Mawardhani", "score": 80.0, "time": "32 menit", "seconds": 1947.0}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Naima Farkhodovna Nosirova", "score": 95.0, "time": "27 menit", "seconds": 1662.0}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Anik Biati, S.Pd.", "score": 77.5, "time": "1 jam", "seconds": 4780.0}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Vincentius Mario Slamet", "score": 97.5, "time": "19 menit", "seconds": 1172.0}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Endang Respa Pratiwi, S.Pd.", "score": 80.0, "time": "41 menit", "seconds": 2491.0}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Nur Hanifah", "score": 90.0, "time": "44 menit", "seconds": 2695.0}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Josephine Lotoc Gayrama", "score": 95.0, "time": "1 jam", "seconds": 5788.0}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Depita Sari, S.Pd.", "score": 75.0, "time": "1 jam", "seconds": 5040.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Sri Wahyuni, S.Pd.", "score": 95.0, "time": "45 menit", "seconds": 2756.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Indah Lestari Suaib, S.Psi.", "score": 95.0, "time": "16 menit", "seconds": 1004.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Nurhikmah", "score": 100.0, "time": "31 menit", "seconds": 1886.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Herninah, S.E.", "score": 92.5, "time": "21 menit", "seconds": 1316.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Febriana", "score": 97.5, "time": "43 menit", "seconds": 2632.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Wahyu Rahmaning Tiyas", "score": 100.0, "time": "34 menit", "seconds": 2058.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Zyra Shayne Casalan", "score": 100.0, "time": "9 menit", "seconds": 543.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Sherina Riza Chairunnisa", "score": 97.5, "time": "31 menit", "seconds": 1876.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Husna Amalia Halida", "score": 97.5, "time": "27 menit", "seconds": 1679.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Rahajeng Anindita", "score": 92.5, "time": "26 menit", "seconds": 1599.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Iin Prihatin", "score": 97.5, "time": "34 menit", "seconds": 2059.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Farah Nabila", "score": 87.5, "time": "24 menit", "seconds": 1449.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Rafa Maritza", "score": 85.0, "time": "28 menit", "seconds": 1737.0}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Siti Septiana Harnasti", "score": 77.5, "time": "1 jam", "seconds": 3729.0}, {"school": "Kharisma Bangsa", "subject": "PKN", "teacher": "Nisrina Alifia Athira, S.Pd.", "score": 82.5, "time": "20 menit", "seconds": 1219.0}, {"school": "Kharisma Bangsa", "subject": "PKN", "teacher": "Riza Emilia, M. Ed.", "score": 90.0, "time": "25 menit", "seconds": 1548.0}, {"school": "Kharisma Bangsa", "subject": "PKN", "teacher": "Yuliana Nuraini Uma Hani, S.S., S.Pd.", "score": 90.0, "time": "47 menit", "seconds": 2876.0}, {"school": "Kharisma Bangsa", "subject": "Religion", "teacher": "Alminhatus Syarifah", "score": 75.0, "time": "34 menit", "seconds": 2056.0}, {"school": "Kharisma Bangsa", "subject": "Religion", "teacher": "Fajar Sidik Setiawan", "score": 90.0, "time": "33 menit", "seconds": 2000.0}, {"school": "Kharisma Bangsa", "subject": "Religion", "teacher": "Patimah, S.Hum.", "score": 57.5, "time": "51 menit", "seconds": 3066.0}, {"school": "Kharisma Bangsa", "subject": "Religion", "teacher": "Susi Andari", "score": 95.0, "time": "1 jam", "seconds": 3708.0}, {"school": "Kharisma Bangsa", "subject": "Religion", "teacher": "Amelia Putri Andini, S.Pd.", "score": 92.5, "time": "36 menit", "seconds": 2184.0}, {"school": "Kharisma Bangsa", "subject": "Science", "teacher": "Sulih Nur Rohmah", "score": 92.5, "time": "26 menit", "seconds": 1594.0}, {"school": "Kharisma Bangsa", "subject": "Science", "teacher": "Maulida Yuliana, B.Sc.", "score": 82.5, "time": "34 menit", "seconds": 2082.0}, {"school": "Kharisma Bangsa", "subject": "Science", "teacher": "Nurhaliza Saputri Tanjung", "score": 55.0, "time": "41 menit", "seconds": 2472.0}, {"school": "Kharisma Bangsa", "subject": "Science", "teacher": "Khumair Sundus Malikah, S.Pd.", "score": 87.5, "time": "23 menit", "seconds": 1405.0}, {"school": "Kharisma Bangsa", "subject": "Science", "teacher": "Aisah Sauma Kamila, S.Pd.", "score": 87.5, "time": "29 menit", "seconds": 1797.0}, {"school": "Kharisma Bangsa", "subject": "Science", "teacher": "Yashinta Devi", "score": 87.5, "time": "1 jam", "seconds": 4184.0}, {"school": "Prestige School", "subject": "Bahasa Indonesia", "teacher": "Jelita Dwi Septya, S.Pd.", "score": 82.5, "time": "1 jam", "seconds": 4236.0}, {"school": "Prestige School", "subject": "Bahasa Indonesia", "teacher": "Jumaidah", "score": 57.5, "time": "40 menit", "seconds": 2400.0}, {"school": "Prestige School", "subject": "Bahasa Indonesia", "teacher": "Nurul Shadrina Husna", "score": 65.0, "time": "40 menit", "seconds": 2420.0}, {"school": "Prestige School", "subject": "Bahasa Indonesia", "teacher": "Ridha Annisa Rangkuti, S.Pd", "score": 75.0, "time": "1 jam", "seconds": 4615.0}, {"school": "Prestige School", "subject": "English", "teacher": "Nurul Ihya Mawadatul Akmal, S.Pd.", "score": 80.0, "time": "32 menit", "seconds": 1940.0}, {"school": "Prestige School", "subject": "English", "teacher": "Intan Suhariani", "score": 85.0, "time": "1 jam", "seconds": 4220.0}, {"school": "Prestige School", "subject": "English", "teacher": "Erra Malinda", "score": 87.5, "time": "42 menit", "seconds": 2566.0}, {"school": "Prestige School", "subject": "English", "teacher": "Elly Adhayanti, S.Pd.", "score": 90.0, "time": "1 jam", "seconds": 3966.0}, {"school": "Prestige School", "subject": "Mathematics", "teacher": "Sakinah Rahma Yani", "score": 80.0, "time": "29 menit", "seconds": 1766.0}, {"school": "Prestige School", "subject": "Mathematics", "teacher": "Marlina", "score": 95.0, "time": "1 jam", "seconds": 5225.0}, {"school": "Prestige School", "subject": "Mathematics", "teacher": "Nicky Anriani Saragih", "score": 75.0, "time": "1 jam", "seconds": 4687.0}, {"school": "Prestige School", "subject": "Mathematics", "teacher": "Nur Hazimah Nasution", "score": 80.0, "time": "1 jam", "seconds": 4260.0}, {"school": "Prestige School", "subject": "PG-KG", "teacher": "Ramadana Desposa", "score": 100.0, "time": "18 menit", "seconds": 1113.0}, {"school": "Prestige School", "subject": "PG-KG", "teacher": "Cindy Syachrani Fauziah, S.Pd.", "score": 95.0, "time": "26 menit", "seconds": 1583.0}, {"school": "Prestige School", "subject": "PG-KG", "teacher": "Nur Hamidah", "score": 82.5, "time": "27 menit", "seconds": 1661.0}, {"school": "Prestige School", "subject": "PG-KG", "teacher": "Annisa Auliya Rahmah, S.Pd.", "score": 95.0, "time": "29 menit", "seconds": 1786.0}, {"school": "Prestige School", "subject": "PG-KG", "teacher": "Alfi Atika Uzhma", "score": 92.5, "time": "23 menit", "seconds": 1406.0}, {"school": "Prestige School", "subject": "PKN", "teacher": "Laila Mutiara", "score": 87.5, "time": "25 menit", "seconds": 1557.0}, {"school": "Prestige School", "subject": "PKN", "teacher": "Aulia Rizki Harahap, S.Pd", "score": 87.5, "time": "36 menit", "seconds": 2187.0}, {"school": "Prestige School", "subject": "Religion", "teacher": "Muhammad Zulham", "score": 97.5, "time": "52 menit", "seconds": 3137.0}, {"school": "Prestige School", "subject": "Religion", "teacher": "Abdul Rofi Amrullah, Lc.", "score": 87.5, "time": "45 menit", "seconds": 2748.0}, {"school": "Prestige School", "subject": "Science", "teacher": "Siti Rizka Amina, S.Pd.", "score": 90.0, "time": "24 menit", "seconds": 1474.0}, {"school": "Prestige School", "subject": "Science", "teacher": "Salwa Khairani Ahmad, S.Pd.", "score": 60.0, "time": "35 menit", "seconds": 2137.0}, {"school": "Pribadi Bandung", "subject": "Bahasa Indonesia", "teacher": "Ai Noer Millah Mahmudah, S.Pd.", "score": 52.5, "time": "38 menit", "seconds": 2294.0}, {"school": "Pribadi Bandung", "subject": "Bahasa Indonesia", "teacher": "Arellya Mugiyat, S.Pd.", "score": 52.5, "time": "44 menit", "seconds": 2640.0}, {"school": "Pribadi Bandung", "subject": "Bahasa Indonesia", "teacher": "Deavy Noer Naomi, S.Pd., Gr.", "score": 52.5, "time": "43 menit", "seconds": 2598.0}, {"school": "Pribadi Bandung", "subject": "Bahasa Indonesia", "teacher": "Hilma Nurul Farohah", "score": 72.5, "time": "46 menit", "seconds": 2786.0}, {"school": "Pribadi Bandung", "subject": "Bahasa Indonesia", "teacher": "Dea Adella Yusuf, S.Pd.", "score": 50.0, "time": "35 menit", "seconds": 2150.0}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Aulia Al Adawiyah, B.Sc.", "score": 0.0, "time": null, "seconds": null}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Fira Alkafi Ramadhan, S.Pd.", "score": 82.5, "time": "39 menit", "seconds": 2358.0}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Khairatul Munawarah, S.Pd.", "score": 80.0, "time": "30 menit", "seconds": 1804.0}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Juliana, B.A.", "score": 85.0, "time": "33 menit", "seconds": 2014.0}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Aina Firdha Lufiana, S.Pd.", "score": 97.5, "time": "31 menit", "seconds": 1894.0}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Vani Octavia, S. Pd.", "score": 87.5, "time": "29 menit", "seconds": 1748.0}, {"school": "Pribadi Bandung", "subject": "Mathematics", "teacher": "Amaliah Nisa, S.Pd.", "score": 92.5, "time": "57 menit", "seconds": 3471.0}, {"school": "Pribadi Bandung", "subject": "Mathematics", "teacher": "Dewi Wulansari Sasmita, B.Sc.", "score": 95.0, "time": "50 menit", "seconds": 3031.0}, {"school": "Pribadi Bandung", "subject": "Mathematics", "teacher": "Rizal Ramdhani, S.Pd.", "score": 95.0, "time": "58 menit", "seconds": 3523.0}, {"school": "Pribadi Bandung", "subject": "PG-KG", "teacher": "Asyifa Rafsanjani", "score": 92.5, "time": "23 menit", "seconds": 1404.0}, {"school": "Pribadi Bandung", "subject": "PG-KG", "teacher": "Ica Indriyani, S.Pd.", "score": 100.0, "time": "21 menit", "seconds": 1296.0}, {"school": "Pribadi Bandung", "subject": "PG-KG", "teacher": "Endah Anita, S. Pd., Gr.", "score": 97.5, "time": "23 menit", "seconds": 1382.0}, {"school": "Pribadi Bandung", "subject": "PKN", "teacher": "Eki Rahadian Purnama., S.Or.", "score": 90.0, "time": "28 menit", "seconds": 1708.0}, {"school": "Pribadi Bandung", "subject": "PKN", "teacher": "Triani Agustina, S. Ds.", "score": 92.5, "time": "33 menit", "seconds": 2029.0}, {"school": "Pribadi Bandung", "subject": "PKN", "teacher": "Rini Murdaningtyas, S.Pd.", "score": 90.0, "time": "12 menit", "seconds": 776.0}, {"school": "Pribadi Bandung", "subject": "PKN", "teacher": "Ine Pebriyanti", "score": 85.0, "time": "30 menit", "seconds": 1804.0}, {"school": "Pribadi Bandung", "subject": "Religion", "teacher": "Jejen Jaenudin, B.A.", "score": 92.5, "time": "27 menit", "seconds": 1666.0}, {"school": "Pribadi Bandung", "subject": "Religion", "teacher": "Imam Haroki, S.S.I", "score": 92.5, "time": "34 menit", "seconds": 2061.0}, {"school": "Pribadi Bandung", "subject": "Religion", "teacher": "Ana Nur Maulida, B.Sc.", "score": 72.5, "time": "1 jam", "seconds": 4374.0}, {"school": "Pribadi Bandung", "subject": "Science", "teacher": "Nurul Zahra Qasmira Zamal, B.A.", "score": 70.0, "time": "25 menit", "seconds": 1531.0}, {"school": "Pribadi Bandung", "subject": "Science", "teacher": "Vani Miyanti Putri S. Pd.", "score": 100.0, "time": "12 menit", "seconds": 728.0}, {"school": "Pribadi Bandung", "subject": "Science", "teacher": "Evania Eriska", "score": 62.5, "time": "47 menit", "seconds": 2823.0}, {"school": "Pribadi Bandung", "subject": "Science", "teacher": "Erlina Amelia", "score": 55.0, "time": "23 menit", "seconds": 1437.0}, {"school": "Pribadi Depok", "subject": "Bahasa Indonesia", "teacher": "Humaida Shofya Az Zahra, S.Pd.", "score": 57.5, "time": "42 menit", "seconds": 2549.0}, {"school": "Pribadi Depok", "subject": "Bahasa Indonesia", "teacher": "Dwi Anjani Hastari, S.Pd.", "score": 65.0, "time": "12 menit", "seconds": 735.0}, {"school": "Pribadi Depok", "subject": "Bahasa Indonesia", "teacher": "Rizqiah Nurbaiti, S.Pd., Gr.", "score": 77.5, "time": "29 menit", "seconds": 1763.0}, {"school": "Pribadi Depok", "subject": "English", "teacher": "Setyaningsih, S.Pd.", "score": 85.0, "time": "36 menit", "seconds": 2163.0}, {"school": "Pribadi Depok", "subject": "English", "teacher": "Istihari, S.Pd., M.Pd.", "score": 95.0, "time": "29 menit", "seconds": 1777.0}, {"school": "Pribadi Depok", "subject": "English", "teacher": "Gunaldi Wicahya, S.S.", "score": 65.0, "time": "33 menit", "seconds": 2010.0}, {"school": "Pribadi Depok", "subject": "Mathematics", "teacher": "Muhammad Amirul Fataa, B.Sc.", "score": 87.5, "time": "40 menit", "seconds": 2445.0}, {"school": "Pribadi Depok", "subject": "Mathematics", "teacher": "Rebsam Capiral Divad, BEEd", "score": 45.0, "time": "1 jam", "seconds": 4598.0}, {"school": "Pribadi Depok", "subject": "Mathematics", "teacher": "Fiki Nugraha, B.Sc.", "score": 95.0, "time": "36 menit", "seconds": 2190.0}, {"school": "Pribadi Depok", "subject": "PKN", "teacher": "Sifa Fauziyah, S.Hum", "score": 85.0, "time": "25 menit", "seconds": 1533.0}, {"school": "Pribadi Depok", "subject": "PKN", "teacher": "Selvia Noviani, S.Pd.", "score": 90.0, "time": "10 menit", "seconds": 622.0}, {"school": "Pribadi Depok", "subject": "Religion", "teacher": "Bekti Nuryati, S.Ag., S.Pd.", "score": 85.0, "time": "33 menit", "seconds": 1993.0}, {"school": "Pribadi Depok", "subject": "Science", "teacher": "Suci Muharom, S.Pd.", "score": 50.0, "time": "1 jam", "seconds": 5211.0}, {"school": "Pribadi Depok", "subject": "Science", "teacher": "Aqila Rahmi Fauziyyah, S.Pd.", "score": 65.0, "time": "42 menit", "seconds": 2534.0}, {"school": "Pribadi Depok", "subject": "Science", "teacher": "Rahmadhanur Fitri, S.Pd.", "score": 87.5, "time": "33 menit", "seconds": 2012.0}, {"school": "Pribadi Premiere", "subject": "Bahasa Indonesia", "teacher": "Fadhilah Azhar, S.pd.I", "score": 70.0, "time": "41 menit", "seconds": 2514.0}, {"school": "Pribadi Premiere", "subject": "English", "teacher": "Sinta Herawati, M.Pd., Gr.", "score": 85.0, "time": "17 menit", "seconds": 1023.0}, {"school": "Pribadi Premiere", "subject": "English", "teacher": "Hanifah Dwiyanti", "score": 85.0, "time": "39 menit", "seconds": 2345.0}, {"school": "Pribadi Premiere", "subject": "English", "teacher": "Fadilla Sari, S.Pd.", "score": 92.5, "time": "35 menit", "seconds": 2127.0}, {"school": "Pribadi Premiere", "subject": "English", "teacher": "Priskila Dwi Ariyanti, S.Li.", "score": 62.5, "time": "46 menit", "seconds": 2794.0}, {"school": "Pribadi Premiere", "subject": "Mathematics", "teacher": "Nafiatul Ummahati, B.Sc., M.Ed.", "score": 87.5, "time": "1 jam", "seconds": 3805.0}, {"school": "Pribadi Premiere", "subject": "Mathematics", "teacher": "Meylia Anggarita Kusuma Wardani, S.K.M.", "score": 80.0, "time": "1 jam", "seconds": 5485.0}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "Elina Rahmawati Halawa, S.Pd.", "score": 92.5, "time": "17 menit", "seconds": 1030.0}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "Novitasari", "score": 92.5, "time": "30 menit", "seconds": 1846.0}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "Dyah Meita Syatiti, S.Pd.", "score": 97.5, "time": "29 menit", "seconds": 1760.0}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "Cut Fatimah Tuhra, S.Pd.", "score": 92.5, "time": "25 menit", "seconds": 1537.0}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "SITI HASANAH", "score": 87.5, "time": "46 menit", "seconds": 2778.0}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "Sunia Susilawati", "score": 85.0, "time": "29 menit", "seconds": 1777.0}, {"school": "Pribadi Premiere", "subject": "PKN", "teacher": "NURMALA DEWI", "score": 92.5, "time": "27 menit", "seconds": 1630.0}, {"school": "Pribadi Premiere", "subject": "PKN", "teacher": "Intan Rahayu Lestari, B.Sc.", "score": 82.5, "time": "25 menit", "seconds": 1507.0}, {"school": "Pribadi Premiere", "subject": "Religion", "teacher": "Eziza Agustin, S.Hut.", "score": 97.5, "time": "58 menit", "seconds": 3534.0}, {"school": "Pribadi Premiere", "subject": "Science", "teacher": "Intan Permatasari, S.Pd.", "score": 87.5, "time": "46 menit", "seconds": 2804.0}, {"school": "Pribadi Premiere", "subject": "Science", "teacher": "Khofifah Azahra, S.Pd.", "score": 70.0, "time": "34 menit", "seconds": 2067.0}, {"school": "Semesta 2", "subject": "Bahasa Indonesia", "teacher": "Yusi Andriyani, S.Pd.", "score": 72.5, "time": "1 jam", "seconds": 3786.0}, {"school": "Semesta 2", "subject": "Bahasa Indonesia", "teacher": "Mar’atus Solihah, S.Pd.", "score": 85.0, "time": "1 jam", "seconds": 3818.0}, {"school": "Semesta 2", "subject": "Bahasa Indonesia", "teacher": "Nur Hidayah, S.Pd.", "score": 60.0, "time": "59 menit", "seconds": 3592.0}, {"school": "Semesta 2", "subject": "Bahasa Indonesia", "teacher": "Hesti Noor Aini, S.S., S.Pd.", "score": 80.0, "time": "1 jam", "seconds": 3719.0}, {"school": "Semesta 2", "subject": "Bahasa Indonesia", "teacher": "Selvia Ummi Hani, S.Pd.", "score": 75.0, "time": "59 menit", "seconds": 3543.0}, {"school": "Semesta 2", "subject": "English", "teacher": "Mariyah Rahmaniyah, S.Pd.", "score": 87.5, "time": "50 menit", "seconds": 3031.0}, {"school": "Semesta 2", "subject": "English", "teacher": "Shela Semillla Malibiran", "score": 92.5, "time": "1 jam", "seconds": 3767.0}, {"school": "Semesta 2", "subject": "English", "teacher": "Yuni Astuti, S.S., S.Pd.", "score": 92.5, "time": "57 menit", "seconds": 3443.0}, {"school": "Semesta 2", "subject": "English", "teacher": "Cut Yaslinar, S.Pd.", "score": 85.0, "time": "56 menit", "seconds": 3402.0}, {"school": "Semesta 2", "subject": "English", "teacher": "Indah Tri Kurniawati, S.Pd.", "score": 82.5, "time": "28 menit", "seconds": 1687.0}, {"school": "Semesta 2", "subject": "English", "teacher": "Anisya Permata Gowa, S.S.", "score": 87.5, "time": "39 menit", "seconds": 2375.0}, {"school": "Semesta 2", "subject": "English", "teacher": "Steffani Putri Maharani", "score": 95.0, "time": "1 jam", "seconds": 3746.0}, {"school": "Semesta 2", "subject": "English", "teacher": "Astrid Maulina Aisyiyah, S.Pd.", "score": 95.0, "time": "39 menit", "seconds": 2385.0}, {"school": "Semesta 2", "subject": "English", "teacher": "Ajeng Suci Haryani, S.Pd.", "score": 95.0, "time": "38 menit", "seconds": 2296.0}, {"school": "Semesta 2", "subject": "English", "teacher": "Novita Indah Nuraini, S.Pd.", "score": 92.5, "time": "1 jam", "seconds": 3773.0}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Nurmaya Herliyani", "score": 82.5, "time": "1 jam", "seconds": 4766.0}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Tias Estiningrum, S.Pd.", "score": 92.5, "time": "1 jam", "seconds": 4792.0}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Kintana Anggita Putri, S.Pd.", "score": 95.0, "time": "1 jam", "seconds": 4662.0}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "RR. Cantik Risca Triani, S.Si.", "score": 92.5, "time": "56 menit", "seconds": 3408.0}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Rr. Puspita Ayu Octaviani, S.T.P.", "score": 97.5, "time": "1 jam", "seconds": 4538.0}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Ika Baitinnisa, S.Pd.", "score": 62.5, "time": "1 jam", "seconds": 3675.0}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Ike Sukarna Putri, S.Pd.", "score": 92.5, "time": "54 menit", "seconds": 3250.0}, {"school": "Semesta 2", "subject": "PKN", "teacher": "Adis Artwiastia, S.Pi.", "score": 90.0, "time": "31 menit", "seconds": 1899.0}, {"school": "Semesta 2", "subject": "Religion", "teacher": "Elsa Yurima, M.Pd.", "score": 67.5, "time": "1 jam", "seconds": 3807.0}, {"school": "Semesta 2", "subject": "Religion", "teacher": "Indra Choirul Umam, S.S.I, MBA.", "score": 100.0, "time": "39 menit", "seconds": 2367.0}, {"school": "Semesta 2", "subject": "Science", "teacher": "Adelia Ayu Larasati, S.Pd.", "score": 75.0, "time": "1 jam", "seconds": 3985.0}, {"school": "Semesta 2", "subject": "Science", "teacher": "Haninta Melati, S.Pd.", "score": 80.0, "time": "46 menit", "seconds": 2800.0}, {"school": "Semesta 2", "subject": "Science", "teacher": "Eka Yuliani, S.Pd.", "score": 82.5, "time": "59 menit", "seconds": 3559.0}, {"school": "Semesta 2", "subject": "Science", "teacher": "Ima Muntasiroh, S.P.", "score": 75.0, "time": "1 jam", "seconds": 5290.0}, {"school": "Semesta 2", "subject": "Science", "teacher": "An-Nisa' Nur Ash-Shiddiqqiyah, S.Si.", "score": 85.0, "time": "30 menit", "seconds": 1847.0}, {"school": "Semesta 2", "subject": "Science", "teacher": "Laila Rahmawati", "score": 82.5, "time": "59 menit", "seconds": 3583.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Utari", "score": 97.5, "time": "19 menit", "seconds": 1191.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Cikal Kurnia", "score": 97.5, "time": "15 menit", "seconds": 904.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Safitri", "score": 97.5, "time": "23 menit", "seconds": 1392.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Puji Astuti, S.Pd.", "score": 92.5, "time": "14 menit", "seconds": 879.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Niken", "score": 92.5, "time": "16 menit", "seconds": 964.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Hariri Dwi Ratnaningrum Stastin Gerhani, S.S", "score": 85.0, "time": "15 menit", "seconds": 901.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Dzikrina Istighfaroh, M.Pd.", "score": 95.0, "time": "20 menit", "seconds": 1202.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Sofiana Rahma Astuti, S.Pd.", "score": 85.0, "time": "20 menit", "seconds": 1224.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Indah Ramadhani", "score": 97.5, "time": "19 menit", "seconds": 1180.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Sabrina Azka Amalina", "score": 92.5, "time": "49 menit", "seconds": 2947.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Feni Handayani, S.Pd.", "score": 95.0, "time": "14 menit", "seconds": 849.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Mafika Rusnawati", "score": 87.5, "time": "22 menit", "seconds": 1338.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Andhayani Puji Astuti", "score": 95.0, "time": "21 menit", "seconds": 1304.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Fadkhuli Muthmainnah, M.Pd.", "score": 92.5, "time": "28 menit", "seconds": 1717.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Sari Dewi Rengganis, S.Si. S.Pd.", "score": 87.5, "time": "34 menit", "seconds": 2094.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Siti Mardiati Yuni Eka Wulandari", "score": 90.0, "time": "38 menit", "seconds": 2298.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Lingga Mulki Damayanti", "score": 95.0, "time": "21 menit", "seconds": 1281.0}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Rina", "score": 97.5, "time": "16 menit", "seconds": 981.0}, {"school": "TNA Fatih", "subject": "Bahasa Indonesia", "teacher": "Maya Silvi Hawa, S.Pd.,Gr.", "score": 55.0, "time": "31 menit", "seconds": 1905.0}, {"school": "TNA Fatih", "subject": "Bahasa Indonesia", "teacher": "Fitri Mz, S.Pd.", "score": 55.0, "time": "29 menit", "seconds": 1752.0}, {"school": "TNA Fatih", "subject": "English", "teacher": "Rahmilla, S.Pd.", "score": 72.5, "time": "43 menit", "seconds": 2607.0}, {"school": "TNA Fatih", "subject": "English", "teacher": "Mita Cayarani Ridwan, M.Pd", "score": 0.0, "time": "1 jam", "seconds": 5225.0}, {"school": "TNA Fatih", "subject": "English", "teacher": "Halimah Tusakdiah Tarigan, S.Pd.", "score": 75.0, "time": "45 menit", "seconds": 2758.0}, {"school": "TNA Fatih", "subject": "English", "teacher": "Adista Putri, S.Pd.", "score": 87.5, "time": "37 menit", "seconds": 2247.0}, {"school": "TNA Fatih", "subject": "English", "teacher": "Cut Dira Maisari, S.Pd.I.", "score": 87.5, "time": "40 menit", "seconds": 2401.0}, {"school": "TNA Fatih", "subject": "Mathematics", "teacher": "Adzkia Azzahra, S.Mat.", "score": 57.5, "time": "36 menit", "seconds": 2161.0}, {"school": "TNA Fatih", "subject": "Mathematics", "teacher": "Mursyida Putri, S.Pd.", "score": 95.0, "time": "55 menit", "seconds": 3359.0}, {"school": "TNA Fatih", "subject": "Mathematics", "teacher": "Febriza Andhini, S.Pd.,Gr.", "score": 95.0, "time": "54 menit", "seconds": 3253.0}, {"school": "TNA Fatih", "subject": "PG-KG", "teacher": "Silfiani", "score": 92.5, "time": "17 menit", "seconds": 1040.0}, {"school": "TNA Fatih", "subject": "PG-KG", "teacher": "Rizki Ramadhani,M.Pd.", "score": 70.0, "time": "26 menit", "seconds": 1604.0}, {"school": "TNA Fatih", "subject": "PG-KG", "teacher": "Haryati", "score": 87.5, "time": "16 menit", "seconds": 982.0}, {"school": "TNA Fatih", "subject": "PKN", "teacher": "Fatimah Zuhra, M.Pd.", "score": 90.0, "time": "19 menit", "seconds": 1197.0}, {"school": "TNA Fatih", "subject": "PKN", "teacher": "Nisrina Mayada", "score": 87.5, "time": "28 menit", "seconds": 1737.0}, {"school": "TNA Fatih", "subject": "Religion", "teacher": "Syamsuddin Ismail, B.A.", "score": 85.0, "time": "53 menit", "seconds": 3192.0}, {"school": "TNA Fatih", "subject": "Religion", "teacher": "Sepiah, S.Pd.I.", "score": 80.0, "time": "49 menit", "seconds": 2973.0}, {"school": "TNA Fatih", "subject": "Science", "teacher": "Shahnoza Sharipova Rustamovna", "score": 30.0, "time": "4 hari", "seconds": 421360.0}, {"school": "TNA Fatih", "subject": "Science", "teacher": "Nur Viya Lisma, S.Pd.", "score": 85.0, "time": "23 menit", "seconds": 1393.0}], "teachers": [{"school": "A-EASE Regional Participant", "subject": "English", "teacher": "eguevarra@fis.edu.ph"}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "arman.t@chindamanee.ac.th"}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "vepa.sahedov@isl.edu.la"}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "joannah.numbisi@isl.edu.la"}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "jomalyn.almine@isl.edu.la"}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "erminia.monares@isl.edu.la"}, {"school": "A-EASE Regional Participant", "subject": "English", "teacher": "y.iranuly@isl.edu.la"}, {"school": "A-EASE Regional Participant", "subject": "Mathematics", "teacher": "arman.t@chindamanee.ac.th"}, {"school": "A-EASE Regional Participant", "subject": "Mathematics", "teacher": "sabdulhamid@fis.edu.ph"}, {"school": "A-EASE Regional Participant", "subject": "Mathematics", "teacher": "elmira.eshenkul@isl.edu.la"}, {"school": "A-EASE Regional Participant", "subject": "Mathematics", "teacher": "Ehoshanov@horizon.edu.vn"}, {"school": "A-EASE Regional Participant", "subject": "Mathematics", "teacher": "alma.monforte@isl.edu.la"}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "arman.t@chindamanee.ac.th"}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "shasoltan.a@chindamanee.ac.th"}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "mabubakar@fis.edu.ph"}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "yayang.putra@isl.edu.la"}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "shirindj89@gmail.com"}, {"school": "A-EASE Regional Participant", "subject": "Science", "teacher": "Ari Munanda Putra"}, {"school": "Fatih", "subject": "Bahasa Indonesia", "teacher": "Fitriyanti"}, {"school": "Fatih", "subject": "Bahasa Indonesia", "teacher": "Nura Hanim, S.Pd."}, {"school": "Fatih", "subject": "Bahasa Indonesia", "teacher": "Zannatun Saniah, S. Pd."}, {"school": "Fatih", "subject": "English", "teacher": "Desi Purnama Sari, M. Pd."}, {"school": "Fatih", "subject": "English", "teacher": "Nina Ramadhani, S.Pd."}, {"school": "Fatih", "subject": "English", "teacher": "Raysa Murlia"}, {"school": "Fatih", "subject": "English", "teacher": "Tiara Saftika, S.Pd"}, {"school": "Fatih", "subject": "Mathematics", "teacher": "Khairunnisa Nur Fithriani, S. Mat"}, {"school": "Fatih", "subject": "Mathematics", "teacher": "Putri Fahmi Khayati, S.Gz."}, {"school": "Fatih", "subject": "PG-KG", "teacher": "Wardatul Jannah"}, {"school": "Fatih", "subject": "PKN", "teacher": "Cut Lisa Meutia Sari, S.Pd"}, {"school": "Fatih", "subject": "Religion", "teacher": "Elviana, S.Sos.I.,S.Pd."}, {"school": "Fatih", "subject": "Science", "teacher": "Ailya Nurul Ilma"}, {"school": "Fatih", "subject": "Science", "teacher": "Hilda Safitri Berutu, S.Pd."}, {"school": "Fatih", "subject": "Science", "teacher": "Ihda Quratul Aini, S.Si."}, {"school": "Kesatuan Bangsa", "subject": "Bahasa Indonesia", "teacher": "Anwar Sultan Yusuf, S.Pd."}, {"school": "Kesatuan Bangsa", "subject": "English", "teacher": "E. Rosnawati"}, {"school": "Kesatuan Bangsa", "subject": "English", "teacher": "Megita Ameliya, S.Pd."}, {"school": "Kesatuan Bangsa", "subject": "Mathematics", "teacher": "Elmi Kurniawati, S.Pd."}, {"school": "Kesatuan Bangsa", "subject": "PKN", "teacher": "Isnanin Aisyah, S.Pd., Gr."}, {"school": "Kesatuan Bangsa", "subject": "PKN", "teacher": "Solikhatun Mahfiroh"}, {"school": "Kesatuan Bangsa", "subject": "Religion", "teacher": "Imanuella Anjhu Sukanda Situmorang"}, {"school": "Kesatuan Bangsa", "subject": "Religion", "teacher": "Muh. Riswang"}, {"school": "Kesatuan Bangsa", "subject": "Religion", "teacher": "Williem Morgen"}, {"school": "Kesatuan Bangsa", "subject": "Science", "teacher": "Megita Ameliya, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Bahasa Indonesia", "teacher": "Cahya Rizki Amaliyah, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Bahasa Indonesia", "teacher": "Erzy Insyafiatul Luthfiyah, S.Psi."}, {"school": "Kharisma Bangsa", "subject": "Bahasa Indonesia", "teacher": "Fadila Novia Hanif, S.Hum."}, {"school": "Kharisma Bangsa", "subject": "Bahasa Indonesia", "teacher": "Frida Ayu Rohmyni, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Bahasa Indonesia", "teacher": "Nafisa, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Cut Zana Yuki Meroza, B.Sc."}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Janine Villanueva"}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Michelle Efendi"}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Naima Farkhodovna Nosirova"}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Nanda Humaira, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "R. Retiyanti Ria. N., M.Pd."}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Sakina Mawardhani, B.A."}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Shinta Viani Paramitha, S.Pd., M.Ed."}, {"school": "Kharisma Bangsa", "subject": "English", "teacher": "Siti Maisyarah, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Anik Biati, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Depita Sari, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Endang Respa Pratiwi, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Josephine Lotoc Gayrama"}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Nur Hanifah, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Mathematics", "teacher": "Vincentius Mario Slamet"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Farah Nabila"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Febriana"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Herninah, S.E."}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Himmatul Haq Aidi"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Husna Amalia Halida"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Iin Prihatin"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Indah Lestari Suaib, S.Psi."}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Nurhikmah"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Rafa Maritza"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Rahajeng Anindita"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Sherina Riza Chairunnisa"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Siti Septiana Harnasti"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Sri Wahyuni, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Wahyu Rahmaning Tiyas"}, {"school": "Kharisma Bangsa", "subject": "PG-KG", "teacher": "Zyra Shayne Casalan"}, {"school": "Kharisma Bangsa", "subject": "PKN", "teacher": "Nisrina Alifia Athira, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "PKN", "teacher": "Riza Emilia, M.Ed."}, {"school": "Kharisma Bangsa", "subject": "PKN", "teacher": "Yuliana Nuraini Uma Hani, S.S., S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Religion", "teacher": "Alminhatus Syarifah, S.Ag."}, {"school": "Kharisma Bangsa", "subject": "Religion", "teacher": "Amelia Putri Andini, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Religion", "teacher": "Fajar Sidik Setiawan, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Religion", "teacher": "Maria Benedicta Endang Dwi Hartini"}, {"school": "Kharisma Bangsa", "subject": "Religion", "teacher": "Patimah, S.Hum."}, {"school": "Kharisma Bangsa", "subject": "Religion", "teacher": "Susi Andari"}, {"school": "Kharisma Bangsa", "subject": "Science", "teacher": "Aisah Sauma Kamila, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Science", "teacher": "Khumair Sundus Malikah, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Science", "teacher": "Maulida Yuliana, B.Sc."}, {"school": "Kharisma Bangsa", "subject": "Science", "teacher": "Nurhaliza Saputri Tanjung, S.Pd."}, {"school": "Kharisma Bangsa", "subject": "Science", "teacher": "Sulih Nur Rohmah"}, {"school": "Prestige School", "subject": "Bahasa Indonesia", "teacher": "Jelita Dwi Septya, S.Pd."}, {"school": "Prestige School", "subject": "Bahasa Indonesia", "teacher": "Nurul Shadrina Husna"}, {"school": "Prestige School", "subject": "Bahasa Indonesia", "teacher": "Ridha Annisa Rangkuti, S.Pd"}, {"school": "Prestige School", "subject": "English", "teacher": "Elly Adhayanti, S.Pd."}, {"school": "Prestige School", "subject": "English", "teacher": "Erra Malinda"}, {"school": "Prestige School", "subject": "English", "teacher": "Intan Suhariani"}, {"school": "Prestige School", "subject": "English", "teacher": "Mustika Yanti, S.Pd"}, {"school": "Prestige School", "subject": "English", "teacher": "Nurul Ihya Mawadatul Akmal, S.Pd."}, {"school": "Prestige School", "subject": "Mathematics", "teacher": "Habibi Rahman"}, {"school": "Prestige School", "subject": "Mathematics", "teacher": "Marlina"}, {"school": "Prestige School", "subject": "Mathematics", "teacher": "Nicky Anriani Saragih"}, {"school": "Prestige School", "subject": "Mathematics", "teacher": "Nur Hazimah Nasution"}, {"school": "Prestige School", "subject": "Mathematics", "teacher": "Putri Ananda"}, {"school": "Prestige School", "subject": "PG-KG", "teacher": "Resya Putri Ananda"}, {"school": "Prestige School", "subject": "PG-KG", "teacher": "Ramadana Desposa"}, {"school": "Prestige School", "subject": "PG-KG", "teacher": "Cindy Syachrani Fauziah, S.Pd."}, {"school": "Prestige School", "subject": "PG-KG", "teacher": "Nur Hamidah"}, {"school": "Prestige School", "subject": "PG-KG", "teacher": "Annisa Auliya Rahmah, S.Pd."}, {"school": "Prestige School", "subject": "PG-KG", "teacher": "Alfi Atika Uzhma"}, {"school": "Prestige School", "subject": "PKN", "teacher": "Aulia Rizki Harahap, S.Pd"}, {"school": "Prestige School", "subject": "PKN", "teacher": "Laila Mutiara"}, {"school": "Prestige School", "subject": "Religion", "teacher": "Abdul Rofi Amrullah, Lc."}, {"school": "Prestige School", "subject": "Religion", "teacher": "Muhammad Zulham"}, {"school": "Prestige School", "subject": "Science", "teacher": "Saidatunnisa Nasution"}, {"school": "Prestige School", "subject": "Science", "teacher": "Salwa Khairani Ahmad, S.Pd."}, {"school": "Prestige School", "subject": "Science", "teacher": "Siti Rizka Amina, S.Pd."}, {"school": "Prestige School", "subject": "Science", "teacher": "Yola Audila Agma"}, {"school": "Pribadi Bandung", "subject": "Bahasa Indonesia", "teacher": "Ai Noer Millah Mahmudah, S.Pd."}, {"school": "Pribadi Bandung", "subject": "Bahasa Indonesia", "teacher": "Arellya Mugiyat, S.Pd."}, {"school": "Pribadi Bandung", "subject": "Bahasa Indonesia", "teacher": "Dea Adella Yusuf, S.Pd."}, {"school": "Pribadi Bandung", "subject": "Bahasa Indonesia", "teacher": "Deavy Noer Naomi, S.Pd., Gr."}, {"school": "Pribadi Bandung", "subject": "Bahasa Indonesia", "teacher": "Hilma Nurul Farohah"}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Aina Firdha Lufiana, S.Pd."}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Fira Alkafi Ramadhan, S.Pd."}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Juliana, B.A."}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Khairatul Munawarah, S.Pd."}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Russell Harry Lavin"}, {"school": "Pribadi Bandung", "subject": "English", "teacher": "Vani Octavia, S. Pd."}, {"school": "Pribadi Bandung", "subject": "Mathematics", "teacher": "Amaliah Nisa, S.Pd."}, {"school": "Pribadi Bandung", "subject": "Mathematics", "teacher": "Dewi Wulansari Sasmita, B.Sc."}, {"school": "Pribadi Bandung", "subject": "Mathematics", "teacher": "Rizal Ramdhani, S.Pd., Gr."}, {"school": "Pribadi Bandung", "subject": "PG-KG", "teacher": "Asyifa Rafsanjani"}, {"school": "Pribadi Bandung", "subject": "PG-KG", "teacher": "Endah Anita, S. Pd., Gr."}, {"school": "Pribadi Bandung", "subject": "PG-KG", "teacher": "Ica Indriyani, S.Pd."}, {"school": "Pribadi Bandung", "subject": "PKN", "teacher": "Eki Rahadian Purnama., S.Or."}, {"school": "Pribadi Bandung", "subject": "PKN", "teacher": "Ine Pebriyanti, S.Pd."}, {"school": "Pribadi Bandung", "subject": "PKN", "teacher": "Rini Murdaningtyas, S.Pd."}, {"school": "Pribadi Bandung", "subject": "PKN", "teacher": "Triani Agustina, S. Ds."}, {"school": "Pribadi Bandung", "subject": "Religion", "teacher": "Ana Nur Maulida, B.Sc."}, {"school": "Pribadi Bandung", "subject": "Religion", "teacher": "Imam Haroki, S.S.I"}, {"school": "Pribadi Bandung", "subject": "Religion", "teacher": "Jejen Jaenudin, B.A."}, {"school": "Pribadi Bandung", "subject": "Science", "teacher": "Nurul Zahra Qasmira Zamal, B.A."}, {"school": "Pribadi Bandung", "subject": "Science", "teacher": "Vani Miyanti Putri S. Pd."}, {"school": "Pribadi Bandung", "subject": "Science", "teacher": "Evania Eriska"}, {"school": "Pribadi Bandung", "subject": "Science", "teacher": "Erlina Amelia"}, {"school": "Pribadi Depok", "subject": "Bahasa Indonesia", "teacher": "Dwi Anjani Hastari, S.Pd."}, {"school": "Pribadi Depok", "subject": "Bahasa Indonesia", "teacher": "Humaida Shofya Az Zahra, S.Pd."}, {"school": "Pribadi Depok", "subject": "Bahasa Indonesia", "teacher": "Rizqiah Nurbaiti, S.Pd."}, {"school": "Pribadi Depok", "subject": "English", "teacher": "Gunaldi Wicahya, S.S."}, {"school": "Pribadi Depok", "subject": "English", "teacher": "Istihari, S.Pd., M.Pd."}, {"school": "Pribadi Depok", "subject": "English", "teacher": "Nico"}, {"school": "Pribadi Depok", "subject": "English", "teacher": "Setyaningsih, S.Pd."}, {"school": "Pribadi Depok", "subject": "Mathematics", "teacher": "Muhammad Amirul Fataa, B.Sc."}, {"school": "Pribadi Depok", "subject": "Mathematics", "teacher": "Rebsam Capiral Divad, BEEd"}, {"school": "Pribadi Depok", "subject": "Mathematics", "teacher": "Tia Febriana, S.Pd."}, {"school": "Pribadi Depok", "subject": "PKN", "teacher": "Sifa Fauziyah, S.Hum"}, {"school": "Pribadi Depok", "subject": "Religion", "teacher": "Bekti Nuryati, S.Ag., S.Pd."}, {"school": "Pribadi Depok", "subject": "Science", "teacher": "Aqila Rahmi Fauziyyah, S.Pd."}, {"school": "Pribadi Depok", "subject": "Science", "teacher": "Rahmadhanur Fitri, S.Pd."}, {"school": "Pribadi Depok", "subject": "Science", "teacher": "Suci Muharom, S.Pd."}, {"school": "Pribadi Premiere", "subject": "Bahasa Indonesia", "teacher": "Fadhilah Azhar, S.pd.I"}, {"school": "Pribadi Premiere", "subject": "English", "teacher": "Fadilla Sari, S.Pd."}, {"school": "Pribadi Premiere", "subject": "English", "teacher": "Hanifah Kurnia Dwiyanti, B.A."}, {"school": "Pribadi Premiere", "subject": "English", "teacher": "Priskila Dwi Ariyanti, S.Li."}, {"school": "Pribadi Premiere", "subject": "English", "teacher": "Sinta Herawati, M.Pd., Gr."}, {"school": "Pribadi Premiere", "subject": "English", "teacher": "Thomas Alexander Uty"}, {"school": "Pribadi Premiere", "subject": "Mathematics", "teacher": "Meylia Anggarita Kusuma Wardani, S.K.M."}, {"school": "Pribadi Premiere", "subject": "Mathematics", "teacher": "Nafiatul Ummahati, B.Sc., M.Ed."}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "Cut Fatimah Tuhra, S.Pd."}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "Dyah Meita Syatiti, S.Pd."}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "Elina Rahmawati Halawa, S.Pd."}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "Novitasari, S.Pd"}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "Sherlene Gracia E Rampi"}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "SITI HASANAH, S.S"}, {"school": "Pribadi Premiere", "subject": "PG-KG", "teacher": "Sunia Susilawati"}, {"school": "Pribadi Premiere", "subject": "PKN", "teacher": "Intan Rahayu Lestari, B.Sc."}, {"school": "Pribadi Premiere", "subject": "PKN", "teacher": "Nurmala Dewi S.Pd."}, {"school": "Pribadi Premiere", "subject": "Religion", "teacher": "Eziza Agustin, S.Hut."}, {"school": "Pribadi Premiere", "subject": "Religion", "teacher": "Peni Nur Islami Dini"}, {"school": "Pribadi Premiere", "subject": "Science", "teacher": "Intan Permatasari, S.Pd."}, {"school": "Pribadi Premiere", "subject": "Science", "teacher": "Khofifah Azahra, S.Pd."}, {"school": "Semesta 2", "subject": "Bahasa Indonesia", "teacher": "Hesti Noor Aini, S.S., S.Pd."}, {"school": "Semesta 2", "subject": "Bahasa Indonesia", "teacher": "Mar’atus Solihah, S.Pd."}, {"school": "Semesta 2", "subject": "Bahasa Indonesia", "teacher": "Nur Hidayah, S.Pd."}, {"school": "Semesta 2", "subject": "Bahasa Indonesia", "teacher": "Selvia Ummi Hani, S.Pd."}, {"school": "Semesta 2", "subject": "Bahasa Indonesia", "teacher": "Yusi Andriyani, S.Pd."}, {"school": "Semesta 2", "subject": "English", "teacher": "Ajeng Suci Haryani, S.Pd."}, {"school": "Semesta 2", "subject": "English", "teacher": "Anisya Permata Gowa, S.S."}, {"school": "Semesta 2", "subject": "English", "teacher": "Astrid Maulina Aisyiyah, S.Pd."}, {"school": "Semesta 2", "subject": "English", "teacher": "Cut Yaslinar, S.Pd."}, {"school": "Semesta 2", "subject": "English", "teacher": "Indah Tri Kurniawati, S.Pd."}, {"school": "Semesta 2", "subject": "English", "teacher": "Mariyah Rahmaniyah, S.Pd."}, {"school": "Semesta 2", "subject": "English", "teacher": "Novita Indah Nuraini, S.Pd."}, {"school": "Semesta 2", "subject": "English", "teacher": "Shela Semillla Malibiran"}, {"school": "Semesta 2", "subject": "English", "teacher": "Steffani Putri Maharani, S.S."}, {"school": "Semesta 2", "subject": "English", "teacher": "Yuni Astuti, S.S., S.Pd."}, {"school": "Semesta 2", "subject": "English", "teacher": "Yusef Riza Murti Rukmini, M.Pd."}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Ike Sukarna Putri, S.Pd."}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Ika Baitinnisa, S.Pd."}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Kintana Anggita Putri, S.Pd."}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Laila Rahmawati, S.Pd."}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Nurmaya Herliyani, S.Pd"}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "RR. Cantik Risca Triani, S.Si."}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Rr. Puspita Ayu Octaviani, S.T.P."}, {"school": "Semesta 2", "subject": "Mathematics", "teacher": "Tias Estiningrum, S.Pd."}, {"school": "Semesta 2", "subject": "PKN", "teacher": "Adis Artwiastia, S.Pi."}, {"school": "Semesta 2", "subject": "Religion", "teacher": "Elsa Yurima, M.Pd."}, {"school": "Semesta 2", "subject": "Religion", "teacher": "Indra Choirul Umam, S.S.I, MBA."}, {"school": "Semesta 2", "subject": "Science", "teacher": "Adelia Ayu Larasati, S.Pd."}, {"school": "Semesta 2", "subject": "Science", "teacher": "An-Nisa' Nur Ash-Shiddiqqiyah, S.Si."}, {"school": "Semesta 2", "subject": "Science", "teacher": "Eka Yuliani, S.Pd."}, {"school": "Semesta 2", "subject": "Science", "teacher": "Haninta Melati, S.Pd."}, {"school": "Semesta 2", "subject": "Science", "teacher": "Ima Muntasiroh, S.P."}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Andhayani Puji Astuti"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Cikal Kurnia"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Dzikrina Istighfaroh, M.Pd."}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Fadkhuli Muthmainnah, M.Pd."}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Feni Handayani, S.Pd."}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Hariri Dwi Ratnaningrum Stastin Gerhani, S.S"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Indah Ramadhani"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Lingga Mulki Damayanti"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Lina Mawaddah, S.Pd"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Mafika Rusnawati"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Nisa Kurnia"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Niken"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Puji Astuti, S.Pd."}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Rina Novita Dewi"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Sari Dewi Rengganis, S.Si. S.Pd."}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Siti Mardiati Yuni Eka Wulandari"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Sofiana Rahma Astuti, S.Pd."}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Utari"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Sabrina Azka Amalina"}, {"school": "Semesta 3", "subject": "PG-KG", "teacher": "Safitri"}, {"school": "TNA Fatih", "subject": "Bahasa Indonesia", "teacher": "Fitri Mz, S.Pd."}, {"school": "TNA Fatih", "subject": "Bahasa Indonesia", "teacher": "Halimah Tusakdiah Tarigan, S.Pd.,Gr."}, {"school": "TNA Fatih", "subject": "Bahasa Indonesia", "teacher": "Maya Silvi Hawa, S.Pd.,Gr."}, {"school": "TNA Fatih", "subject": "English", "teacher": "Rahmilla, S.Pd."}, {"school": "TNA Fatih", "subject": "English", "teacher": "Mita Cayarani Ridwan, M.Pd"}, {"school": "TNA Fatih", "subject": "English", "teacher": "Halimah Tusakdiah Tarigan, S.Pd."}, {"school": "TNA Fatih", "subject": "English", "teacher": "Adista Putri, S.Pd."}, {"school": "TNA Fatih", "subject": "English", "teacher": "Cut Dira Maisari, S.Pd.I."}, {"school": "TNA Fatih", "subject": "Mathematics", "teacher": "Adzkia Azzahra, S.Mat."}, {"school": "TNA Fatih", "subject": "Mathematics", "teacher": "Febriza Andhini, S.Pd.,Gr."}, {"school": "TNA Fatih", "subject": "Mathematics", "teacher": "Mursyida Putri, S.Pd.,Gr."}, {"school": "TNA Fatih", "subject": "PG-KG", "teacher": "Silfiani"}, {"school": "TNA Fatih", "subject": "PG-KG", "teacher": "Rizki Ramadhani,M.Pd."}, {"school": "TNA Fatih", "subject": "PG-KG", "teacher": "Haryati"}, {"school": "TNA Fatih", "subject": "PKN", "teacher": "Fatimah Zuhra, M.Pd."}, {"school": "TNA Fatih", "subject": "PKN", "teacher": "Nisrina Mayada"}, {"school": "TNA Fatih", "subject": "Religion", "teacher": "Sepiah, S.Pd.I.,Gr."}, {"school": "TNA Fatih", "subject": "Religion", "teacher": "Syamsuddin Ismail, B.A."}, {"school": "TNA Fatih", "subject": "Science", "teacher": "Fatimah Zuhra,S.S., M.Pd."}, {"school": "TNA Fatih", "subject": "Science", "teacher": "Nur Viya Lisma, S.Pd.,Gr."}, {"school": "TNA Fatih", "subject": "Science", "teacher": "Shahnoza Sharipova Rustamovna"}]};
+
+/* ===================== UTIL ===================== */
+const $ = (s)=>document.querySelector(s);
+const fmt = (n,d=1)=> (n==null||isNaN(n)) ? '—' : Number(n).toFixed(d);
+const colorBand = s => s>=95?'#6c8cff':s>=85?'#7fe7c4':s>=75?'#f1d860':s>=60?'#ffb24c':'#ff6e7a';
+const colorBandSoft = s => s>=95?'#6c8cff80':s>=85?'#7fe7c480':s>=75?'#f1d86080':s>=60?'#ffb24c80':'#ff6e7a80';
+function avg(arr){ if(!arr.length) return null; return arr.reduce((a,b)=>a+b,0)/arr.length; }
+function fmtTime(seconds){
+  if(seconds==null) return '—';
+  const m = Math.round(seconds/60);
+  if(m<60) return m+' min';
+  return Math.floor(m/60)+'h '+(m%60)+'m';
+}
+
+/* Counts by (school,subject) */
+const regCount = {};
+RAW.teachers.forEach(t=>{
+  const k = t.school+'||'+t.subject;
+  regCount[k] = (regCount[k]||0)+1;
+});
+const regBySchool = {};
+RAW.teachers.forEach(t=>{ regBySchool[t.school]=(regBySchool[t.school]||0)+1; });
+const partBySchool = {};
+RAW.participants.forEach(p=>{ partBySchool[p.school]=(partBySchool[p.school]||0)+1; });
+
+const SCHOOLS = [...new Set(RAW.participants.map(p=>p.school))].sort();
+const SUBJECTS = [...new Set(RAW.participants.map(p=>p.subject))].sort();
+
+/* Populate filter selects */
+function fillSelect(id, items){
+  const el = document.getElementById(id);
+  items.forEach(v=>{ const o=document.createElement('option'); o.value=v; o.textContent=v; el.appendChild(o); });
+}
+fillSelect('f-school', SCHOOLS);
+fillSelect('f-subject', SUBJECTS);
+
+/* Build no-show list: teachers registered but not in participants */
+const partKeySet = new Set(RAW.participants.map(p=>p.teacher+'||'+p.subject));
+const NOSHOWS = RAW.teachers.filter(t=>!partKeySet.has(t.teacher+'||'+t.subject)).map(t=>({
+  school:t.school, subject:t.subject, teacher:t.teacher, score:null, time:null, seconds:null, _noshow:true
+}));
+
+/* Filter state */
+const state = {school:'', subject:'', search:'', min:null, max:null, sortKey:'score', sortDir:'desc', includeNoshow:false};
+function applyFilters(arr, opts={}){
+  const q = state.search.trim().toLowerCase();
+  return arr.filter(p=>{
+    if(state.school && p.school!==state.school) return false;
+    if(state.subject && p.subject!==state.subject) return false;
+    if(!opts.skipScoreRange){
+      if(state.min!=null && (p.score==null || p.score<state.min)) return false;
+      if(state.max!=null && (p.score==null || p.score>state.max)) return false;
+    }
+    if(q){
+      const hay = ((p.teacher||'')+' '+(p.school||'')+' '+(p.subject||'')).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+function getFiltered(){ return applyFilters(RAW.participants); }
+function getFilteredWithNoShows(){
+  const a = applyFilters(RAW.participants);
+  if(!state.includeNoshow) return a;
+  const b = applyFilters(NOSHOWS, {skipScoreRange:true});
+  return a.concat(b);
+}
+function escapeHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]); }
+function highlight(text, q){
+  const s = escapeHtml(text);
+  if(!q) return s;
+  const re = new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig');
+  return s.replace(re,'<mark>$1</mark>');
+}
+
+/* ===================== KPI ===================== */
+function renderKPIs(){
+  const F = getFiltered();
+  const scores = F.map(p=>p.score).filter(s=>s!=null);
+  const totalReg = state.school
+    ? (regBySchool[state.school]||0)
+    : Object.values(regBySchool).reduce((a,b)=>a+b,0);
+  const totalPart = F.length;
+  const partRate = totalReg ? (totalPart/totalReg*100) : null;
+  const bestScore = scores.length? Math.max(...scores) : null;
+  const passRate = scores.length? (scores.filter(s=>s>=75).length/scores.length*100) : null;
+  const items = [
+    {label:'Participants', val: totalPart, sub: `of ${totalReg} registered`},
+    {label:'Avg Score', val: fmt(avg(scores),1), sub: scores.length+' graded'},
+    {label:'Top Score', val: bestScore==null?'—':fmt(bestScore,0), sub:'highest in view'},
+    {label:'Pass Rate (≥75)', val: passRate==null?'—':fmt(passRate,1)+'%', sub:''},
+    {label:'Schools', val: new Set(F.map(p=>p.school)).size, sub: SCHOOLS.length+' total'},
+    {label:'Subjects', val: new Set(F.map(p=>p.subject)).size, sub: SUBJECTS.length+' total'},
+    {label:'Participation Rate', val: partRate==null?'—':fmt(partRate,1)+'%', sub:''},
+  ];
+  const root = $('#kpis');
+  root.innerHTML = items.map(i=>`<div class="kpi"><div class="label">${i.label}</div><div class="val">${i.val}</div><div class="sub">${i.sub}</div></div>`).join('');
+  // cover meta
+  $('#meta-participants').textContent = RAW.participants.length;
+  $('#meta-schools').textContent = SCHOOLS.length;
+  $('#meta-subjects').textContent = SUBJECTS.length;
+  const allScores = RAW.participants.map(p=>p.score).filter(s=>s!=null);
+  $('#meta-avg').textContent = fmt(avg(allScores),1);
+  $('#f-summary').textContent = `${F.length} participants in view`;
+}
+
+/* ===================== CHARTS ===================== */
+Chart.defaults.color = '#cfd6ff';
+Chart.defaults.borderColor = '#243064';
+Chart.defaults.font.family = '-apple-system, "Segoe UI", Roboto, sans-serif';
+
+const charts = {};
+
+function destroyCharts(){
+  Object.values(charts).forEach(c=>c && c.destroy());
+}
+
+function bandedBarChart(canvasId, labels, values, title, suffix=''){
+  const ctx = document.getElementById(canvasId);
+  charts[canvasId] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{
+      label:title,
+      data:values,
+      backgroundColor:values.map(v=>colorBandSoft(v||0)),
+      borderColor:values.map(v=>colorBand(v||0)),
+      borderWidth:2, borderRadius:8,
+    }]},
+    options:{
+      indexAxis: labels.length>5 ? 'y':'x',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>` ${c.parsed[labels.length>5?'x':'y']?.toFixed(1)}${suffix}`}}
+      },
+      scales:{
+        x:{grid:{color:'#243064'},ticks:{color:'#9aa6d0'}},
+        y:{grid:{color:'#243064'},ticks:{color:'#cfd6ff', autoSkip:false}},
+      }
+    }
+  });
+}
+
+function renderSchoolChart(){
+  const F = getFiltered();
+  const map = {};
+  F.forEach(p=>{ (map[p.school]=map[p.school]||[]).push(p.score); });
+  const entries = Object.entries(map).map(([k,v])=>[k, avg(v)]).sort((a,b)=>b[1]-a[1]);
+  bandedBarChart('chart-school', entries.map(e=>e[0]), entries.map(e=>e[1]), 'Avg score');
+}
+
+function renderSubjectChart(){
+  const F = getFiltered();
+  const map = {};
+  F.forEach(p=>{ (map[p.subject]=map[p.subject]||[]).push(p.score); });
+  const entries = Object.entries(map).map(([k,v])=>[k, avg(v)]).sort((a,b)=>b[1]-a[1]);
+  bandedBarChart('chart-subject', entries.map(e=>e[0]), entries.map(e=>e[1]), 'Avg score');
+}
+
+function renderParticipationChart(){
+  const labels = SCHOOLS.slice();
+  const part = labels.map(s=>partBySchool[s]||0);
+  const reg = labels.map(s=>regBySchool[s]||0);
+  const ctx = document.getElementById('chart-participation');
+  charts['chart-participation'] = new Chart(ctx,{
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'Participated', data: part, backgroundColor:'#7fe7c4cc', borderColor:'#7fe7c4', borderWidth:2, borderRadius:6 },
+      { label:'Registered', data: reg, backgroundColor:'#6c8cff44', borderColor:'#6c8cff', borderWidth:2, borderRadius:6 },
+    ]},
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'top',labels:{color:'#cfd6ff'}}, tooltip:{callbacks:{
+        afterLabel:(ctx)=>{
+          const s = labels[ctx.dataIndex];
+          const r = regBySchool[s]||0; const p = partBySchool[s]||0;
+          return ctx.dataset.label==='Participated' && r>0 ? ` Rate: ${(p/r*100).toFixed(1)}%` : '';
+        }
+      }}},
+      scales:{ x:{stacked:false,grid:{color:'#243064'},ticks:{color:'#9aa6d0'}}, y:{grid:{color:'#243064'},ticks:{color:'#cfd6ff'}} }
+    }
+  });
+}
+
+function renderDistChart(){
+  const F = getFiltered();
+  const scores = F.map(p=>p.score).filter(s=>s!=null);
+  const bins = [0,10,20,30,40,50,60,70,80,90,100.0001];
+  const labels = ['0-9','10-19','20-29','30-39','40-49','50-59','60-69','70-79','80-89','90-100'];
+  const counts = labels.map(()=>0);
+  scores.forEach(s=>{ for(let i=0;i<bins.length-1;i++){ if(s>=bins[i] && s<bins[i+1]){counts[i]++;break;} } });
+  const ctx = document.getElementById('chart-dist');
+  charts['chart-dist'] = new Chart(ctx,{
+    type:'bar',
+    data:{ labels, datasets:[{
+      label:'Teachers', data:counts,
+      backgroundColor: labels.map((_,i)=>colorBandSoft(bins[i]+5)),
+      borderColor: labels.map((_,i)=>colorBand(bins[i]+5)),
+      borderWidth:2, borderRadius:6
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{grid:{color:'#243064'},ticks:{color:'#9aa6d0'}}, y:{grid:{color:'#243064'},ticks:{color:'#9aa6d0', stepSize:5}, beginAtZero:true} }
+    }
+  });
+}
+
+function renderScatter(){
+  const F = getFiltered().filter(p=>p.score!=null && p.seconds!=null);
+  const bySubject = {};
+  F.forEach(p=>{ (bySubject[p.subject]=bySubject[p.subject]||[]).push({x:p.seconds/60, y:p.score, school:p.school, teacher:p.teacher}); });
+  const palette = ['#6c8cff','#7fe7c4','#ffb24c','#ff6e7a','#c89dff','#f1d860','#5ac8fa'];
+  const datasets = Object.entries(bySubject).map(([sub,arr],i)=>({
+    label:sub, data:arr, backgroundColor:palette[i%palette.length], borderColor:palette[i%palette.length],
+    pointRadius:5, pointHoverRadius:7
+  }));
+  const ctx = document.getElementById('chart-scatter');
+  charts['chart-scatter'] = new Chart(ctx,{
+    type:'scatter',
+    data:{datasets},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'bottom',labels:{color:'#cfd6ff', boxWidth:10}}, tooltip:{callbacks:{
+        label:c=>` ${c.raw.teacher} · ${c.raw.school}`,
+        afterLabel:c=>` Score: ${c.raw.y} · Time: ${c.raw.x.toFixed(0)} min`
+      }}},
+      scales:{
+        x:{title:{display:true,text:'Time used (minutes)',color:'#9aa6d0'},grid:{color:'#243064'},ticks:{color:'#9aa6d0'}},
+        y:{title:{display:true,text:'Final score',color:'#9aa6d0'},grid:{color:'#243064'},ticks:{color:'#9aa6d0'},min:0,max:100}
+      }
+    }
+  });
+}
+
+function renderTimeChart(){
+  const F = getFiltered().filter(p=>p.seconds!=null);
+  const map={};
+  F.forEach(p=>{ (map[p.subject]=map[p.subject]||[]).push(p.seconds/60); });
+  const entries = Object.entries(map).map(([k,v])=>[k, avg(v)]).sort((a,b)=>b[1]-a[1]);
+  const ctx = document.getElementById('chart-time');
+  charts['chart-time'] = new Chart(ctx,{
+    type:'bar',
+    data:{labels:entries.map(e=>e[0]), datasets:[{
+      label:'Minutes', data: entries.map(e=>e[1]),
+      backgroundColor:'#6c8cff80', borderColor:'#6c8cff', borderWidth:2, borderRadius:6
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.parsed.y.toFixed(1)} min`}}},
+      scales:{ x:{grid:{color:'#243064'},ticks:{color:'#9aa6d0'}}, y:{grid:{color:'#243064'},ticks:{color:'#9aa6d0'},beginAtZero:true} }
+    }
+  });
+}
+
+/* ===================== HEATMAP ===================== */
+function renderHeatmap(){
+  const F = getFiltered();
+  const map = {};
+  F.forEach(p=>{ const k=p.school+'||'+p.subject; (map[k]=map[k]||[]).push(p.score); });
+  const html = [];
+  html.push('<table><thead><tr><th class="school">School</th>');
+  SUBJECTS.forEach(s=>html.push(`<th>${s}</th>`));
+  html.push('<th>Overall</th></tr></thead><tbody>');
+  SCHOOLS.forEach(school=>{
+    html.push(`<tr><td class="school">${school}</td>`);
+    const allForSchool = [];
+    SUBJECTS.forEach(sub=>{
+      const arr = map[school+'||'+sub] || [];
+      if(arr.length===0){
+        html.push('<td><span style="color:#3a4a82">—</span></td>');
+      } else {
+        const a = avg(arr); allForSchool.push(...arr);
+        html.push(`<td><span class="cell" style="display:inline-block;min-width:54px;padding:6px 10px;background:${colorBandSoft(a)};border:1px solid ${colorBand(a)};color:#fff">${a.toFixed(1)}</span><div style="color:#7c89b8;font-size:10px;margin-top:2px">n=${arr.length}</div></td>`);
+      }
+    });
+    if(allForSchool.length){
+      const a = avg(allForSchool);
+      html.push(`<td><b style="color:${colorBand(a)}">${a.toFixed(1)}</b></td>`);
+    } else html.push('<td>—</td>');
+    html.push('</tr>');
+  });
+  // subject totals row
+  html.push('<tr><td class="school" style="color:var(--muted)">Overall</td>');
+  SUBJECTS.forEach(sub=>{
+    const arr = F.filter(p=>p.subject===sub).map(p=>p.score);
+    if(!arr.length){html.push('<td>—</td>');return;}
+    const a = avg(arr);
+    html.push(`<td><b style="color:${colorBand(a)}">${a.toFixed(1)}</b></td>`);
+  });
+  const allArr = F.map(p=>p.score);
+  html.push(`<td><b style="color:${colorBand(avg(allArr)||0)}">${avg(allArr)?avg(allArr).toFixed(1):'—'}</b></td>`);
+  html.push('</tr></tbody></table>');
+  document.getElementById('heatmap').innerHTML = html.join('');
+}
+
+/* ===================== TABLES ===================== */
+function renderTopTable(){
+  const F = getFiltered().filter(p=>p.score!=null);
+  const sorted = F.slice().sort((a,b)=> b.score-a.score || ((a.seconds??1e9)-(b.seconds??1e9)));
+  const top = sorted.slice(0,15);
+  const tb = document.querySelector('#top-table tbody');
+  tb.innerHTML = top.map((p,i)=>{
+    const c = colorBand(p.score);
+    return `<tr><td class="rank">${i+1}</td><td>${p.teacher||'—'}</td><td>${p.school}</td><td>${p.subject}</td><td><span class="score-pill" style="background:${colorBandSoft(p.score)};color:#fff;border:1px solid ${c}">${fmt(p.score,0)}</span></td><td>${fmtTime(p.seconds)}</td></tr>`;
+  }).join('');
+  if(!top.length) tb.innerHTML = '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">No data for current filter.</td></tr>';
+}
+
+function renderSchoolTable(){
+  const F = getFiltered();
+  const map = {};
+  F.forEach(p=>{ (map[p.school]=map[p.school]||[]).push(p); });
+  const rows = Object.entries(map).map(([school,arr])=>{
+    const scores = arr.map(p=>p.score).filter(s=>s!=null);
+    return { school, n:arr.length, avg:avg(scores), best:scores.length?Math.max(...scores):null, worst:scores.length?Math.min(...scores):null };
+  }).sort((a,b)=>(b.avg??0)-(a.avg??0));
+  const tb = document.querySelector('#school-table tbody');
+  tb.innerHTML = rows.map(r=>{
+    return `<tr><td>${r.school}</td><td>${r.n}</td><td style="color:${colorBand(r.avg||0)};font-weight:600">${fmt(r.avg,1)}</td><td>${fmt(r.best,0)}</td><td>${fmt(r.worst,0)}</td></tr>`;
+  }).join('');
+  if(!rows.length) tb.innerHTML = '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px">No data for current filter.</td></tr>';
+}
+
+/* ===================== EXCEL-STYLE PIVOTS ===================== */
+function pivotTable(elId, valueFn, formatFn, opts={}){
+  // For each school × subject, compute a value from participant data
+  const map = {};
+  RAW.participants.forEach(p=>{
+    const k = p.school+'||'+p.subject;
+    (map[k]=map[k]||[]).push(p);
+  });
+  const reg = {};
+  RAW.teachers.forEach(t=>{ const k=t.school+'||'+t.subject; reg[k]=(reg[k]||0)+1; });
+
+  const html=['<table><thead><tr><th class="school">School</th>'];
+  SUBJECTS.forEach(s=>html.push(`<th>${s}</th>`));
+  html.push('<th class="total">Overall</th></tr></thead><tbody>');
+
+  SCHOOLS.forEach(school=>{
+    html.push(`<tr><td class="school">${school}</td>`);
+    const rowAll=[];
+    SUBJECTS.forEach(sub=>{
+      const arr = map[school+'||'+sub] || [];
+      const regN = reg[school+'||'+sub] || 0;
+      const v = valueFn(arr, regN, school, sub);
+      rowAll.push({arr, regN, v});
+      html.push(`<td>${formatFn(v, arr, regN)}</td>`);
+    });
+    // Row total
+    const tot = valueFn(
+      rowAll.flatMap(r=>r.arr),
+      rowAll.reduce((a,r)=>a+r.regN,0),
+      school, null
+    );
+    html.push(`<td class="total">${formatFn(tot, rowAll.flatMap(r=>r.arr), rowAll.reduce((a,r)=>a+r.regN,0))}</td>`);
+    html.push('</tr>');
+  });
+
+  // Footer row: per-subject totals
+  html.push('<tr><td class="school total">Grand Total</td>');
+  SUBJECTS.forEach(sub=>{
+    const arr = RAW.participants.filter(p=>p.subject===sub);
+    const regN = RAW.teachers.filter(t=>t.subject===sub).length;
+    const v = valueFn(arr, regN, null, sub);
+    html.push(`<td class="total">${formatFn(v, arr, regN)}</td>`);
+  });
+  const allArr = RAW.participants;
+  const allReg = RAW.teachers.length;
+  html.push(`<td class="total">${formatFn(valueFn(allArr, allReg, null, null), allArr, allReg)}</td>`);
+  html.push('</tr></tbody></table>');
+  document.getElementById(elId).innerHTML = html.join('');
+}
+
+function renderPivots(){
+  // Pivot 1: average score
+  pivotTable('pivot-avg',
+    (arr)=> arr.length ? avg(arr.map(p=>p.score).filter(s=>s!=null)) : null,
+    (v, arr)=>{
+      if(v==null) return '<span style="color:#3a4a82">—</span>';
+      return `<span class="cell" style="display:inline-block;min-width:54px;padding:5px 10px;background:${colorBandSoft(v)};border:1px solid ${colorBand(v)};color:#fff">${v.toFixed(1)}</span>`;
+    });
+  // Pivot 2: count participants
+  pivotTable('pivot-count',
+    (arr)=> arr.length,
+    (v)=> v>0 ? `<b>${v}</b>` : '<span style="color:#3a4a82">0</span>');
+  // Pivot 3: registered count + participation rate
+  pivotTable('pivot-reg',
+    (arr, regN)=>({reg:regN, part:arr.length}),
+    (v)=>{
+      if(!v.reg && !v.part) return '<span style="color:#3a4a82">—</span>';
+      const rate = v.reg>0 ? (v.part/v.reg*100) : null;
+      const c = rate==null?'#9aa6d0' : rate>=90?'#7fe7c4' : rate>=70?'#f1d860' : rate>=40?'#ffb24c' : '#ff6e7a';
+      return `<b>${v.reg}</b>${rate==null?'':`<div style="color:${c};font-size:10px;margin-top:2px">${rate.toFixed(0)}% rate</div>`}`;
+    });
+}
+
+/* ===================== STATISTICS ===================== */
+function median(arr){ if(!arr.length) return null; const a=arr.slice().sort((x,y)=>x-y); const m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; }
+function stdev(arr){ if(arr.length<2) return null; const m=avg(arr); return Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2,0)/(arr.length-1)); }
+function quantile(arr, q){ if(!arr.length) return null; const a=arr.slice().sort((x,y)=>x-y); const i=q*(a.length-1); const lo=Math.floor(i),hi=Math.ceil(i); return lo===hi?a[lo]:a[lo]+(a[hi]-a[lo])*(i-lo); }
+
+function renderStats(){
+  const F = getFiltered();
+  const scores = F.map(p=>p.score).filter(s=>s!=null);
+  const items = scores.length ? [
+    {label:'n', val:scores.length},
+    {label:'Mean', val:avg(scores).toFixed(2)},
+    {label:'Median', val:median(scores).toFixed(1)},
+    {label:'Std Dev', val:(stdev(scores)||0).toFixed(2)},
+    {label:'Min', val:Math.min(...scores).toFixed(0)},
+    {label:'Q1 (25%)', val:quantile(scores,0.25).toFixed(1)},
+    {label:'Q3 (75%)', val:quantile(scores,0.75).toFixed(1)},
+    {label:'Max', val:Math.max(...scores).toFixed(0)},
+    {label:'Pass Rate (≥75)', val:(scores.filter(s=>s>=75).length/scores.length*100).toFixed(1)+'%'},
+    {label:'Excellence (≥90)', val:(scores.filter(s=>s>=90).length/scores.length*100).toFixed(1)+'%'},
+    {label:'Perfect (=100)', val:scores.filter(s=>s===100).length},
+    {label:'Failed (<60)', val:scores.filter(s=>s<60).length},
+  ] : [{label:'No data', val:'—'}];
+  document.getElementById('stats-overall').innerHTML = items.map(i=>`<div class="stat"><div class="label">${i.label}</div><div class="val">${i.val}</div></div>`).join('');
+
+  // Per subject stats
+  const bySub = {};
+  F.forEach(p=>{ if(p.score!=null){(bySub[p.subject]=bySub[p.subject]||[]).push(p.score);} });
+  const rowsS = Object.entries(bySub).map(([sub,arr])=>({
+    sub, n:arr.length, mean:avg(arr), med:median(arr), sd:stdev(arr),
+    mn:Math.min(...arr), mx:Math.max(...arr), pass:arr.filter(s=>s>=75).length/arr.length*100
+  })).sort((a,b)=>b.mean-a.mean);
+  const tbS = document.querySelector('#stats-subject tbody');
+  tbS.innerHTML = rowsS.length ? rowsS.map(r=>`<tr>
+    <td>${r.sub}</td><td>${r.n}</td>
+    <td style="color:${colorBand(r.mean)};font-weight:600">${r.mean.toFixed(1)}</td>
+    <td>${r.med.toFixed(1)}</td><td>${(r.sd||0).toFixed(2)}</td>
+    <td>${r.mn.toFixed(0)}</td><td>${r.mx.toFixed(0)}</td>
+    <td>${r.pass.toFixed(0)}%</td>
+  </tr>`).join('') : '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">No data.</td></tr>';
+
+  // Per school stats
+  const bySc = {};
+  F.forEach(p=>{ if(p.score!=null){(bySc[p.school]=bySc[p.school]||[]).push(p.score);} });
+  const rowsSc = Object.entries(bySc).map(([sch,arr])=>{
+    const regN = state.subject ? (RAW.teachers.filter(t=>t.school===sch && t.subject===state.subject).length)
+                               : (regBySchool[sch]||0);
+    return {
+      sch, n:arr.length, reg:regN, rate: regN>0?(arr.length/regN*100):null,
+      mean:avg(arr), med:median(arr), sd:stdev(arr),
+      mn:Math.min(...arr), mx:Math.max(...arr), pass:arr.filter(s=>s>=75).length/arr.length*100
+    };
+  }).sort((a,b)=>b.mean-a.mean);
+  const tbSc = document.querySelector('#stats-school tbody');
+  tbSc.innerHTML = rowsSc.length ? rowsSc.map(r=>`<tr>
+    <td>${r.sch}</td><td>${r.n}</td><td>${r.reg}</td>
+    <td>${r.rate==null?'—':r.rate.toFixed(0)+'%'}</td>
+    <td style="color:${colorBand(r.mean)};font-weight:600">${r.mean.toFixed(1)}</td>
+    <td>${r.med.toFixed(1)}</td><td>${(r.sd||0).toFixed(2)}</td>
+    <td>${r.mn.toFixed(0)}</td><td>${r.mx.toFixed(0)}</td>
+    <td>${r.pass.toFixed(0)}%</td>
+  </tr>`).join('') : '<tr><td colspan="10" style="color:var(--muted);text-align:center;padding:20px">No data.</td></tr>';
+}
+
+/* ===================== NO-SHOW TABLE ===================== */
+function renderNoShows(){
+  const list = applyFilters(NOSHOWS, {skipScoreRange:true});
+  document.getElementById('noshow-count').textContent = list.length+' no-show'+(list.length===1?'':'s');
+  const bySchool = {};
+  list.forEach(t=>{ bySchool[t.school]=(bySchool[t.school]||0)+1; });
+  const top = Object.entries(bySchool).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([s,n])=>`${s} (${n})`).join(' · ');
+  document.getElementById('noshow-summary').textContent = top? '· top: '+top : '';
+  const tb = document.querySelector('#noshow-table tbody');
+  if(!list.length){
+    tb.innerHTML = '<tr><td colspan="4" class="no-rows">All registered teachers participated within the current filter.</td></tr>';
+    return;
+  }
+  list.sort((a,b)=> (a.school||'').localeCompare(b.school||'') || (a.subject||'').localeCompare(b.subject||''));
+  const q = state.search.trim();
+  tb.innerHTML = list.map(t=>`<tr>
+    <td>${highlight(t.teacher||'—', q)}</td>
+    <td>${highlight(t.school||'', q)}</td>
+    <td>${highlight(t.subject||'', q)}</td>
+    <td><span class="status-pill">Did not participate</span></td>
+  </tr>`).join('');
+}
+
+/* ===================== INDIVIDUAL RESULTS TABLE ===================== */
+function renderResultsTable(){
+  const F = getFilteredWithNoShows();
+  const dir = state.sortDir==='asc'?1:-1;
+  const key = state.sortKey;
+  const sorted = F.slice().sort((a,b)=>{
+    let va=a[key], vb=b[key];
+    if(va==null && vb==null) return 0;
+    if(va==null) return 1; if(vb==null) return -1;
+    if(typeof va==='string'){ return va.localeCompare(vb)*dir; }
+    return (va-vb)*dir;
+  });
+  const q = state.search.trim();
+  const tb = document.querySelector('#results-table tbody');
+  if(!sorted.length){
+    tb.innerHTML = '<tr><td colspan="5" class="no-rows">No teachers match your search/filter.</td></tr>';
+  } else {
+    tb.innerHTML = sorted.map(p=>{
+      const c = colorBand(p.score||0);
+      const scoreCell = p.score==null
+        ? '<span class="status-pill">No score</span>'
+        : `<span class="score-pill" style="background:${colorBandSoft(p.score)};color:#fff;border:1px solid ${c}">${fmt(p.score,0)}</span>`;
+      return `<tr${p._noshow?' style="opacity:.75"':''}>
+        <td>${highlight(p.teacher||'—', q)}</td>
+        <td>${highlight(p.school||'', q)}</td>
+        <td>${highlight(p.subject||'', q)}</td>
+        <td>${scoreCell}</td>
+        <td>${fmtTime(p.seconds)}</td>
+      </tr>`;
+    }).join('');
+  }
+  // counts + summary
+  $('#results-count').textContent = sorted.length+' result'+(sorted.length===1?'':'s');
+  const scores = sorted.map(p=>p.score).filter(s=>s!=null);
+  $('#results-summary').textContent = scores.length
+    ? `· avg ${avg(scores).toFixed(1)} · range ${Math.min(...scores)}–${Math.max(...scores)}`
+    : '';
+  // sort indicator
+  document.querySelectorAll('#results-table thead th').forEach(th=>{
+    th.classList.toggle('sorted', th.dataset.sort===key);
+    th.textContent = th.textContent.replace(/[ ▲▼]+$/,'');
+    if(th.dataset.sort===key) th.textContent += ' '+(state.sortDir==='asc'?'▲':'▼');
+  });
+}
+
+/* ===================== RENDER ALL ===================== */
+function renderAll(){
+  destroyCharts();
+  renderKPIs();
+  renderSchoolChart();
+  renderSubjectChart();
+  renderParticipationChart();
+  renderDistChart();
+  renderScatter();
+  renderTimeChart();
+  renderHeatmap();
+  renderPivots();
+  renderStats();
+  renderTopTable();
+  renderSchoolTable();
+  renderNoShows();
+  renderResultsTable();
+}
+
+/* ===================== EVENTS ===================== */
+let searchTimer=null;
+$('#f-search').addEventListener('input', e=>{
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(()=>{ state.search=e.target.value; renderAll(); }, 120);
+});
+$('#f-school').addEventListener('change', e=>{ state.school=e.target.value; renderAll(); });
+$('#f-subject').addEventListener('change', e=>{ state.subject=e.target.value; renderAll(); });
+$('#f-min').addEventListener('input', e=>{ state.min = e.target.value===''?null:Number(e.target.value); renderAll(); });
+$('#f-max').addEventListener('input', e=>{ state.max = e.target.value===''?null:Number(e.target.value); renderAll(); });
+$('#f-clear').addEventListener('click', ()=>{
+  state.school=''; state.subject=''; state.search=''; state.min=null; state.max=null; state.includeNoshow=false;
+  $('#f-school').value=''; $('#f-subject').value=''; $('#f-search').value=''; $('#f-min').value=''; $('#f-max').value='';
+  $('#include-noshow').checked=false;
+  renderAll();
+});
+$('#include-noshow').addEventListener('change', e=>{ state.includeNoshow=e.target.checked; renderResultsTable(); });
+document.querySelectorAll('#results-table thead th').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const k = th.dataset.sort;
+    if(state.sortKey===k){ state.sortDir = state.sortDir==='asc'?'desc':'asc'; }
+    else { state.sortKey=k; state.sortDir=(k==='score'||k==='seconds')?'desc':'asc'; }
+    renderResultsTable();
+  });
+});
+$('#export-csv').addEventListener('click', (e)=>{
+  e.preventDefault();
+  const rows = getFilteredWithNoShows();
+  const head = ['Teacher','School','Subject','Score','Seconds','Time'];
+  const csv = [head.join(',')].concat(rows.map(p=>[
+    `"${(p.teacher||'').replace(/"/g,'""')}"`,
+    `"${(p.school||'').replace(/"/g,'""')}"`,
+    `"${(p.subject||'').replace(/"/g,'""')}"`,
+    p.score??'', p.seconds??'', `"${(p.time||'').replace(/"/g,'""')}"`
+  ].join(','))).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download='a-ease-results.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+});
+
+const d = new Date();
+$('#gen-date').textContent = d.toISOString().slice(0,10);
+
+renderAll();
+</script>
+</body>
+</html>
