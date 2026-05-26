@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/Primary-A-EASE-2-Dashboard.html" }
+  ]
+}
